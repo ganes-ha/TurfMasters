@@ -6,6 +6,11 @@
     --font-body: 'Plus Jakarta Sans', sans-serif;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
+  }
+
   body {
     font-family: var(--font-body);
     background-color: #06130e;
@@ -13,6 +18,12 @@
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  button, a, input, select, textarea {
+    touch-action: manipulation;
   }
 
   input, textarea, select {
@@ -25,7 +36,7 @@
   }
 }
 
-/* Custom scrollbars */
+/* Custom smooth scrollbars */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -41,7 +52,7 @@
   background: #25583f;
 }
 
-/* Pulse animation */
+/* Hardware accelerated pulse animation */
 @keyframes pulse-subtle {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.85; transform: scale(0.98); }
@@ -49,4 +60,5 @@
 
 .animate-pulse-subtle {
   animation: pulse-subtle 2s ease-in-out infinite;
+  will-change: opacity, transform;
 }

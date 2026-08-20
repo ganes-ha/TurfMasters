@@ -1,6 +1,7 @@
 /**
  * Voice Recognition Engine for Hands-Free Cricket Scoring
  * Uses Web Speech API native browser speech recognition
+ * Hardened for Mobile Chrome / Safari with exponential backoff & loop protection.
  */
 
 type VoiceScoreHandler = (action: {
@@ -38,6 +39,9 @@ class VoiceScoringEngine {
   private isListening: boolean = false;
   private onScoreCallback: VoiceScoreHandler | null = null;
   private onStatusChangeCallback: ((isListening: boolean, message: string) => void) | null = null;
+  private restartTimeout: ReturnType<typeof setTimeout> | null = null;
+  private restartAttempts: number = 0;
+  private lastRestartTime: number = 0;
 
   constructor() {
     this.initRecognition();
@@ -50,7 +54,6 @@ class VoiceScoringEngine {
       (window as unknown as { webkitSpeechRecognition: new () => SpeechRecognitionInstance }).webkitSpeechRecognition;
 
     if (!SpeechRec) {
-      console.warn('Speech Recognition not supported in this browser.');
       return;
     }
 
@@ -61,34 +64,60 @@ class VoiceScoringEngine {
       this.recognition.lang = 'en-US';
 
       this.recognition.onresult = (event: SpeechRecognitionEvent) => {
-        const lastResultIndex = event.results.length - 1;
-        const transcript = event.results[lastResultIndex][0].transcript.trim().toLowerCase();
-        this.processTranscript(transcript);
+        try {
+          const lastResultIndex = event.results.length - 1;
+          const transcript = event.results[lastResultIndex][0].transcript.trim().toLowerCase();
+          this.processTranscript(transcript);
+        } catch (e) {
+          console.warn('Transcript processing error:', e);
+        }
       };
 
       this.recognition.onerror = (event: { error: string }) => {
-        console.warn('Voice recognition error:', event.error);
-        if (event.error === 'not-allowed') {
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           this.stop();
           this.notifyStatus(false, 'Microphone permission blocked');
+        } else if (event.error === 'no-speech') {
+          // Normal timeout on quiet matches, handled in onend
+        } else {
+          console.warn('Voice recognition notice:', event.error);
         }
       };
 
       this.recognition.onend = () => {
         if (this.isListening) {
-          // Restart if still marked as listening (mobile speech timeout workaround)
-          try {
-            this.recognition?.start();
-          } catch (_) {
-            this.isListening = false;
-            this.notifyStatus(false, 'Voice paused');
+          const now = Date.now();
+          // Rate-limit restarts: if restarted more than 5 times in 5 seconds, back off
+          if (now - this.lastRestartTime < 1000) {
+            this.restartAttempts++;
+          } else {
+            this.restartAttempts = 0;
           }
+          this.lastRestartTime = now;
+
+          if (this.restartAttempts > 4) {
+            this.isListening = false;
+            this.notifyStatus(false, 'Voice paused (low audio input)');
+            return;
+          }
+
+          if (this.restartTimeout) clearTimeout(this.restartTimeout);
+          this.restartTimeout = setTimeout(() => {
+            if (this.isListening && this.recognition) {
+              try {
+                this.recognition.start();
+              } catch (_) {
+                this.isListening = false;
+                this.notifyStatus(false, 'Voice paused');
+              }
+            }
+          }, 350);
         } else {
           this.notifyStatus(false, 'Voice inactive');
         }
       };
     } catch (err) {
-      console.error('Failed to init speech recognition:', err);
+      console.warn('Failed to init speech recognition:', err);
     }
   }
 
@@ -103,24 +132,29 @@ class VoiceScoringEngine {
     if (onStatusChange) this.onStatusChangeCallback = onStatusChange;
 
     try {
-      this.recognition.start();
       this.isListening = true;
-      this.notifyStatus(true, 'Listening for voice scores...');
+      this.restartAttempts = 0;
+      this.recognition.start();
+      this.notifyStatus(true, 'Listening for cricket commands...');
       return true;
     } catch (err) {
-      console.error('Error starting voice recognition:', err);
+      console.warn('Speech start warning:', err);
       return false;
     }
   }
 
   public stop() {
     this.isListening = false;
+    if (this.restartTimeout) {
+      clearTimeout(this.restartTimeout);
+      this.restartTimeout = null;
+    }
     if (this.recognition) {
       try {
         this.recognition.stop();
       } catch (_) {}
     }
-    this.notifyStatus(false, 'Voice stopped');
+    this.notifyStatus(false, 'Voice scoring stopped');
   }
 
   public toggle(onScore: VoiceScoreHandler, onStatusChange?: (isListening: boolean, message: string) => void): boolean {
@@ -132,49 +166,60 @@ class VoiceScoringEngine {
     }
   }
 
-  private notifyStatus(listening: boolean, msg: string) {
+  private notifyStatus(listening: boolean, message: string) {
     if (this.onStatusChangeCallback) {
-      this.onStatusChangeCallback(listening, msg);
+      this.onStatusChangeCallback(listening, message);
     }
   }
 
+  /**
+   * Natural cricket scoring terminology parser
+   */
   private processTranscript(text: string) {
     if (!this.onScoreCallback) return;
 
-    // Analyze spoken words
-    if (text.includes('dot') || text.includes('zero') || text.includes('no run') || text === '0') {
-      this.onScoreCallback({ type: 'runs', runs: 0 });
-      this.notifyStatus(true, `Heard: "Dot Ball (0)"`);
-    } else if (text.includes('single') || text.includes('one run') || text === 'one' || text === '1') {
-      this.onScoreCallback({ type: 'runs', runs: 1 });
-      this.notifyStatus(true, `Heard: "1 Run"`);
-    } else if (text.includes('double') || text.includes('two runs') || text === 'two' || text === '2') {
-      this.onScoreCallback({ type: 'runs', runs: 2 });
-      this.notifyStatus(true, `Heard: "2 Runs"`);
-    } else if (text.includes('three') || text === '3') {
-      this.onScoreCallback({ type: 'runs', runs: 3 });
-      this.notifyStatus(true, `Heard: "3 Runs"`);
-    } else if (text.includes('four') || text.includes('boundary') || text === '4') {
-      this.onScoreCallback({ type: 'runs', runs: 4 });
-      this.notifyStatus(true, `Heard: "FOUR (4)"`);
-    } else if (text.includes('six') || text.includes('maximum') || text === '6') {
+    // Direct match runs
+    if (text.includes('six') || text.includes('sixer') || text.includes('maximum') || text === '6') {
       this.onScoreCallback({ type: 'runs', runs: 6 });
-      this.notifyStatus(true, `Heard: "SIX (6)"`);
-    } else if (text.includes('wide')) {
-      this.onScoreCallback({ type: 'wide' });
-      this.notifyStatus(true, `Heard: "Wide Ball"`);
-    } else if (text.includes('no ball') || text.includes('noball')) {
-      this.onScoreCallback({ type: 'noball' });
-      this.notifyStatus(true, `Heard: "No Ball"`);
-    } else if (text.includes('bye')) {
-      this.onScoreCallback({ type: 'bye', runs: 1 });
-      this.notifyStatus(true, `Heard: "Bye"`);
-    } else if (text.includes('out') || text.includes('wicket') || text.includes('bowled') || text.includes('caught')) {
+      return;
+    }
+    if (text.includes('four') || text.includes('boundary') || text === '4') {
+      this.onScoreCallback({ type: 'runs', runs: 4 });
+      return;
+    }
+    if (text.includes('dot') || text.includes('dot ball') || text.includes('zero') || text === '0') {
+      this.onScoreCallback({ type: 'runs', runs: 0 });
+      return;
+    }
+    if (text.includes('single') || text.includes('one run') || text === '1') {
+      this.onScoreCallback({ type: 'runs', runs: 1 });
+      return;
+    }
+    if (text.includes('double') || text.includes('two runs') || text.includes('two') || text === '2') {
+      this.onScoreCallback({ type: 'runs', runs: 2 });
+      return;
+    }
+    if (text.includes('three runs') || text.includes('three') || text === '3') {
+      this.onScoreCallback({ type: 'runs', runs: 3 });
+      return;
+    }
+
+    // Dismissals & Extras
+    if (text.includes('wicket') || text.includes('out') || text.includes('bowled') || text.includes('caught')) {
       this.onScoreCallback({ type: 'wicket' });
-      this.notifyStatus(true, `Heard: "Wicket Out"`);
-    } else if (text.includes('undo')) {
+      return;
+    }
+    if (text.includes('wide')) {
+      this.onScoreCallback({ type: 'wide', runs: 1 });
+      return;
+    }
+    if (text.includes('no ball') || text.includes('noball')) {
+      this.onScoreCallback({ type: 'noball', runs: 1 });
+      return;
+    }
+    if (text.includes('undo') || text.includes('cancel last')) {
       this.onScoreCallback({ type: 'undo' });
-      this.notifyStatus(true, `Heard: "Undo"`);
+      return;
     }
   }
 }

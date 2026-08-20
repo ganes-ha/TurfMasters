@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   User, 
   Swords, 
@@ -26,16 +26,21 @@ export const StatsScreen: React.FC<StatsScreenProps> = ({ players, history }) =>
   const [h2hBatter, setH2hBatter] = useState<string>(players[0] || '');
   const [h2hBowler, setH2hBowler] = useState<string>(players[1] || players[0] || '');
 
-  const career = selectedPlayer ? aggregateCareerStats(selectedPlayer, history) : null;
-  const h2h = (h2hBatter && h2hBowler) ? aggregateHeadToHead(h2hBatter, h2hBowler, history) : null;
+  const career = useMemo(() => {
+    return selectedPlayer ? aggregateCareerStats(selectedPlayer, history) : null;
+  }, [selectedPlayer, history]);
 
-  const earnedBadges = career
-    ? BADGE_DEFS.filter(b => b.check(career))
-    : [];
+  const h2h = useMemo(() => {
+    return (h2hBatter && h2hBowler) ? aggregateHeadToHead(h2hBatter, h2hBowler, history) : null;
+  }, [h2hBatter, h2hBowler, history]);
 
-  const lockedBadges = career
-    ? BADGE_DEFS.filter(b => !b.check(career))
-    : BADGE_DEFS;
+  const earnedBadges = useMemo(() => {
+    return career ? BADGE_DEFS.filter(b => b.check(career)) : [];
+  }, [career]);
+
+  const lockedBadges = useMemo(() => {
+    return career ? BADGE_DEFS.filter(b => !b.check(career)) : BADGE_DEFS;
+  }, [career]);
 
   // Head to Head verdict
   const getH2HVerdict = () => {

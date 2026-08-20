@@ -17,6 +17,21 @@ import { DEFAULT_PLAYERS } from './data/defaultSquad';
 import { calculateAwards, oversStr } from './utils/cricketRules';
 import { audioHaptics } from './utils/audioHaptics';
 import { voiceScoring } from './utils/voiceRecognition';
+import { resolvePlayoffMatchups, calculatePointsTable } from './utils/tournamentEngine';
+import { 
+  subscribeToAuthChanges, 
+  subscribeToActiveLiveMatch, 
+  subscribeToLiveMatch,
+  syncLiveMatchToCloud, 
+  saveMatchHistoryToCloud, 
+  deleteMatchHistoryFromCloud,
+  subscribeToMatchHistory, 
+  saveTournamentToCloud, 
+  deleteTournamentFromCloud,
+  subscribeToTournaments, 
+  saveSquadPlayersToCloud, 
+  subscribeToSquadPlayers 
+} from './services/firebase';
 
 // UI Components
 import { Navbar } from './components/Navbar';
@@ -105,21 +120,111 @@ export default function App() {
   const [voiceActive, setVoiceActive] = useState<boolean>(false);
   const [voiceTranscript, setVoiceTranscript] = useState<string>('');
 
-  // Save to localStorage on state modifications
+  const isScorer = user.role === 'scorer' || user.role === 'cloudadmin';
+
+  // Spectator URL Detection & Firebase Real-time Subscriptions
   useEffect(() => {
-    try {
-      localStorage.setItem('cricvault_user', JSON.stringify(user));
-      localStorage.setItem('cricvault_players', JSON.stringify(players));
-      localStorage.setItem('cricvault_history', JSON.stringify(history));
-      localStorage.setItem('cricvault_tournaments', JSON.stringify(tournaments));
-      if (match) {
-        localStorage.setItem('cricvault_active_match', JSON.stringify(match));
-      } else {
-        localStorage.removeItem('cricvault_active_match');
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const isSpectate = params.get('spectate') === 'true' || params.get('view') === 'spectator';
+      if (isSpectate) {
+        setUser(prev => ({
+          ...prev,
+          role: 'viewer',
+          name: prev.role === 'scorer' || prev.role === 'cloudadmin' ? 'Live Spectator' : prev.name
+        }));
+        setActiveScreen('live');
       }
-    } catch (e) {
-      console.error('Storage sync failed:', e);
     }
+  }, []);
+
+  // 1. Firebase Auth state listener
+  useEffect(() => {
+    const unsub = subscribeToAuthChanges((cloudSession) => {
+      if (cloudSession) {
+        setUser(cloudSession);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // 2. Real-time Live Match Stream for spectators
+  useEffect(() => {
+    const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const paramMatchId = params?.get('matchId') || '';
+
+    const handleRemoteMatch = (remoteMatch: Match | null) => {
+      if (remoteMatch) {
+        // If current session is spectator/viewer, continuously mirror the live match
+        if (user.role === 'viewer') {
+          setMatch(remoteMatch);
+        }
+      }
+    };
+
+    const unsub = paramMatchId
+      ? subscribeToLiveMatch(paramMatchId, handleRemoteMatch)
+      : subscribeToActiveLiveMatch(handleRemoteMatch);
+
+    return () => unsub();
+  }, [user.role]);
+
+  // 3. Cloud Match Archives & History
+  useEffect(() => {
+    const unsub = subscribeToMatchHistory((remoteHistory) => {
+      if (remoteHistory && remoteHistory.length > 0) {
+        setHistory(remoteHistory);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // 4. Cloud Tournaments & Standings
+  useEffect(() => {
+    const unsub = subscribeToTournaments((remoteTournaments) => {
+      if (remoteTournaments && remoteTournaments.length > 0) {
+        setTournaments(remoteTournaments);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // 5. Cloud Master Squad Players
+  useEffect(() => {
+    const unsub = subscribeToSquadPlayers((remotePlayers) => {
+      if (remotePlayers && remotePlayers.length > 0) {
+        setPlayers(remotePlayers);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // 6. Push Live Match state to Firestore in real-time when Scorer scores
+  useEffect(() => {
+    if (isScorer && match) {
+      syncLiveMatchToCloud(match);
+    }
+  }, [match, isScorer]);
+
+  // Save to localStorage on state modifications with a light debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem('cricvault_user', JSON.stringify(user));
+        localStorage.setItem('cricvault_players', JSON.stringify(players));
+        localStorage.setItem('cricvault_history', JSON.stringify(history.slice(0, 30)));
+        localStorage.setItem('cricvault_tournaments', JSON.stringify(tournaments));
+        if (match) {
+          localStorage.setItem('cricvault_active_match', JSON.stringify(match));
+        } else {
+          localStorage.removeItem('cricvault_active_match');
+        }
+      } catch (e) {
+        console.warn('Storage sync notice:', e);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
   }, [user, players, match, history, tournaments]);
 
   // Voice recognition scoring handler
@@ -155,8 +260,6 @@ export default function App() {
     audioHaptics.setHapticEnabled(next);
     if (next) audioHaptics.tapFeedback();
   };
-
-  const isScorer = user.role === 'scorer' || user.role === 'cloudadmin';
 
   /* ============================================================
      SCORING ENGINE FUNCTIONS
@@ -768,24 +871,63 @@ export default function App() {
       };
 
       setHistory(prev => [historyEntry, ...prev.slice(0, 40)]);
+      saveMatchHistoryToCloud(historyEntry);
+      syncLiveMatchToCloud(completedMatch);
 
       // Update tournament fixture if applicable
       if (completedMatch.tournamentId && completedMatch.fixtureId) {
         setTournaments(prev => prev.map(t => {
           if (t.id !== completedMatch.tournamentId) return t;
-          return {
+
+          const currentFix = t.fixtures.find(f => f.id === completedMatch.fixtureId);
+          let winnerTeamId = '';
+          let loserTeamId = '';
+
+          if (currentFix) {
+            const isTeamAWinner = resultText.includes(completedMatch.teamA.name + ' won');
+            const isTeamBWinner = resultText.includes(completedMatch.teamB.name + ' won');
+            if (isTeamAWinner) {
+              winnerTeamId = currentFix.teamAId;
+              loserTeamId = currentFix.teamBId;
+            } else if (isTeamBWinner) {
+              winnerTeamId = currentFix.teamBId;
+              loserTeamId = currentFix.teamAId;
+            }
+          }
+
+          const updatedFixtures = t.fixtures.map(f => {
+            if (f.id !== completedMatch.fixtureId) return f;
+            return {
+              ...f,
+              status: 'completed' as const,
+              matchId: completedMatch.id,
+              result: resultText,
+              winnerTeamId,
+              loserTeamId,
+              summary: `${resultText} (${historyEntry.inn1} vs ${historyEntry.inn2})`
+            };
+          });
+
+          let updatedTourn: Tournament = {
             ...t,
-            fixtures: t.fixtures.map(f => {
-              if (f.id !== completedMatch.fixtureId) return f;
-              return {
-                ...f,
-                status: 'completed',
-                matchId: completedMatch.id,
-                result: resultText,
-                summary: `${resultText} (${historyEntry.inn1} vs ${historyEntry.inn2})`
-              };
-            })
+            fixtures: updatedFixtures
           };
+
+          // If this was a final match, record champion
+          if (currentFix?.stage === 'final' && winnerTeamId) {
+            updatedTourn.championTeamId = winnerTeamId;
+            updatedTourn.runnerUpTeamId = loserTeamId;
+            updatedTourn.status = 'completed';
+          }
+
+          // Recalculate standings and resolve subsequent playoff matchups
+          const newHistory = [historyEntry, ...history.slice(0, 40)];
+          const newPoints = calculatePointsTable(updatedTourn, newHistory);
+          const resolved = resolvePlayoffMatchups(updatedTourn, newPoints);
+          updatedTourn.fixtures = resolved;
+
+          saveTournamentToCloud(updatedTourn);
+          return updatedTourn;
         }));
       }
 
@@ -1073,9 +1215,25 @@ export default function App() {
             tournaments={tournaments}
             activeTournamentId={activeTournamentId}
             onSelectTournament={setActiveTournamentId}
-            onCreateTournament={(t) => setTournaments(prev => [t, ...prev])}
+            onCreateTournament={(t) => {
+              setTournaments(prev => [t, ...prev]);
+              setActiveTournamentId(t.id);
+              saveTournamentToCloud(t);
+            }}
+            onUpdateTournament={(t) => {
+              setTournaments(prev => prev.map(item => item.id === t.id ? t : item));
+              saveTournamentToCloud(t);
+            }}
+            onDeleteTournament={(id) => {
+              setTournaments(prev => prev.filter(item => item.id !== id));
+              deleteTournamentFromCloud(id);
+              if (activeTournamentId === id) {
+                setActiveTournamentId(null);
+              }
+            }}
             onLaunchFixtureMatch={handleLaunchFixtureMatch}
             history={history}
+            players={players}
             isScorer={isScorer}
           />
         )}
@@ -1090,9 +1248,20 @@ export default function App() {
         {activeScreen === 'squad' && (
           <SquadScreen
             players={players}
-            onAddPlayer={(name) => setPlayers(prev => [...prev, name])}
-            onRemovePlayer={(name) => setPlayers(prev => prev.filter(p => p !== name))}
-            onResetDefaultSquad={() => setPlayers([...DEFAULT_PLAYERS])}
+            onAddPlayer={(name) => {
+              const next = [...players, name];
+              setPlayers(next);
+              saveSquadPlayersToCloud(next);
+            }}
+            onRemovePlayer={(name) => {
+              const next = players.filter(p => p !== name);
+              setPlayers(next);
+              saveSquadPlayersToCloud(next);
+            }}
+            onResetDefaultSquad={() => {
+              setPlayers([...DEFAULT_PLAYERS]);
+              saveSquadPlayersToCloud([...DEFAULT_PLAYERS]);
+            }}
           />
         )}
 
@@ -1128,6 +1297,7 @@ export default function App() {
       {isQRModalOpen && (
         <SpectatorQRModal
           onClose={() => setIsQRModalOpen(false)}
+          matchId={match?.id ? String(match.id) : undefined}
         />
       )}
 

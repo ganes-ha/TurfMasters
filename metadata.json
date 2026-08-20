@@ -1,6 +1,6 @@
 {
   "name": "CricVault - Box Cricket & Tournament Suite",
-  "description": "Professional Box Cricket scoring engine, tournament management with live points table & NRR, WhatsApp sharing, post-match poster generator, voice scoring, and head-to-head player analytics.",
+  "description": "Professional Box Cricket scoring engine, live spectator streaming mode with real-time Firebase sync, tournament management with live points table & NRR, cloud match archives & stats, post-match poster generator, voice scoring, and verified scorer authentication.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

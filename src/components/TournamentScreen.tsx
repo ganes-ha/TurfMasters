@@ -9,11 +9,23 @@ import {
   CheckCircle2, 
   Medal, 
   ShieldCheck, 
-  ChevronRight 
+  ChevronRight,
+  Sparkles,
+  Trash2,
+  Swords,
+  RefreshCw,
+  Crown,
+  Layers
 } from 'lucide-react';
 import { Tournament, TournamentFixture, MatchHistoryEntry } from '../types';
-import { calculatePointsTable, calculateTournamentLeaders, createNewTournament } from '../utils/tournamentEngine';
-import { SAMPLE_TEAMS } from '../data/defaultSquad';
+import { 
+  calculatePointsTable, 
+  calculateTournamentLeaders, 
+  resolvePlayoffMatchups,
+  PLAYOFF_OPTIONS
+} from '../utils/tournamentEngine';
+import { CreateTournamentModal } from './CreateTournamentModal';
+import { AddFixtureModal } from './AddFixtureModal';
 import { audioHaptics } from '../utils/audioHaptics';
 
 interface TournamentScreenProps {
@@ -21,8 +33,11 @@ interface TournamentScreenProps {
   activeTournamentId: string | null;
   onSelectTournament: (id: string) => void;
   onCreateTournament: (tourn: Tournament) => void;
+  onUpdateTournament?: (tourn: Tournament) => void;
+  onDeleteTournament?: (id: string) => void;
   onLaunchFixtureMatch: (fixture: TournamentFixture, tournament: Tournament) => void;
   history: MatchHistoryEntry[];
+  players?: string[];
   isScorer: boolean;
 }
 
@@ -31,127 +46,156 @@ export const TournamentScreen: React.FC<TournamentScreenProps> = ({
   activeTournamentId,
   onSelectTournament,
   onCreateTournament,
+  onUpdateTournament,
+  onDeleteTournament,
   onLaunchFixtureMatch,
   history,
+  players = [],
   isScorer
 }) => {
   const [activeTab, setActiveTab] = useState<'table' | 'fixtures' | 'knockout' | 'leaders'>('table');
-  const [isCreating, setIsCreating] = useState<boolean>(tournaments.length === 0);
-
-  // New Tournament Form State
-  const [tournName, setTournName] = useState<string>('Turf Premier League');
-  const [overs, setOvers] = useState<number>(6);
-  const [maxBowl, setMaxBowl] = useState<number>(2);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(tournaments.length === 0);
+  const [isAddFixtureModalOpen, setIsAddFixtureModalOpen] = useState<boolean>(false);
+  const [fixtureFilter, setFixtureFilter] = useState<'all' | 'group' | 'playoff' | 'upcoming' | 'completed'>('all');
 
   const activeTourn = tournaments.find(t => t.id === activeTournamentId) || tournaments[0] || null;
 
   const pointsTable = activeTourn ? calculatePointsTable(activeTourn, history) : [];
   const leaders = activeTourn ? calculateTournamentLeaders(activeTourn, history) : null;
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Resolve playoff matchups dynamically
+  const resolvedPlayoffFixtures = activeTourn 
+    ? resolvePlayoffMatchups(activeTourn, pointsTable)
+    : [];
+
+  const handleSyncPlayoffMatchups = () => {
+    if (!activeTourn || !onUpdateTournament) return;
     audioHaptics.tapFeedback();
-    const newTourn = createNewTournament(tournName, overs, maxBowl, SAMPLE_TEAMS, 'round-robin');
-    onCreateTournament(newTourn);
-    onSelectTournament(newTourn.id);
-    setIsCreating(false);
+    const updated = {
+      ...activeTourn,
+      fixtures: resolvedPlayoffFixtures
+    };
+    onUpdateTournament(updated);
   };
 
-  return (
-    <div className="max-w-md mx-auto py-4 px-3 space-y-4">
-      {/* Tournament Selector / Header */}
-      <div className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-[#0f281e] border border-emerald-900/60">
-        <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center font-bold">
-            <Trophy className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="font-extrabold text-sm text-emerald-100 font-display truncate max-w-[180px]">
-              {activeTourn?.name || 'Tournament Hub'}
-            </h2>
-            <span className="text-[10px] text-emerald-400/80 uppercase font-bold">
-              {activeTourn ? `${activeTourn.teams.length} Teams • ${activeTourn.oversPerMatch} Overs` : 'Create League'}
-            </span>
-          </div>
-        </div>
+  const handleAddCustomFixture = (newFixture: TournamentFixture) => {
+    if (!activeTourn || !onUpdateTournament) return;
+    const updated: Tournament = {
+      ...activeTourn,
+      fixtures: [...activeTourn.fixtures, newFixture]
+    };
+    onUpdateTournament(updated);
+  };
 
-        {isScorer && (
-          <button
-            onClick={() => {
-              audioHaptics.tapFeedback();
-              setIsCreating(!isCreating);
-            }}
-            className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold text-xs flex items-center gap-1 shadow-md"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>{isCreating ? 'View' : 'New League'}</span>
-          </button>
-        )}
+  const handleDeleteFixture = (fixtureId: string) => {
+    if (!activeTourn || !onUpdateTournament) return;
+    if (!window.confirm('Delete this scheduled fixture?')) return;
+    audioHaptics.tapFeedback();
+    const updated: Tournament = {
+      ...activeTourn,
+      fixtures: activeTourn.fixtures.filter(f => f.id !== fixtureId)
+    };
+    onUpdateTournament(updated);
+  };
+
+  // Find if Grand Final is completed to celebrate champion
+  const finalFixture = activeTourn?.fixtures.find(f => f.stage === 'final');
+  const isFinalCompleted = finalFixture?.status === 'completed';
+  const championTeam = isFinalCompleted && finalFixture?.winnerTeamId
+    ? activeTourn?.teams.find(t => t.id === finalFixture.winnerTeamId)
+    : null;
+
+  // Filtered Fixtures
+  const filteredFixtures = (activeTourn?.fixtures || []).filter(f => {
+    if (fixtureFilter === 'group') return f.stage === 'group';
+    if (fixtureFilter === 'playoff') return f.isPlayoff || f.stage !== 'group';
+    if (fixtureFilter === 'upcoming') return f.status !== 'completed';
+    if (fixtureFilter === 'completed') return f.status === 'completed';
+    return true;
+  });
+
+  return (
+    <div className="max-w-md mx-auto py-3 px-3 space-y-3.5">
+      {/* Tournament Selector & Management Bar */}
+      <div className="p-3.5 rounded-3xl bg-[#0f281e] border border-emerald-900/60 shadow-lg space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-emerald-950 flex items-center justify-center font-black shadow-md shrink-0">
+              <Trophy className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              {tournaments.length > 1 ? (
+                <select
+                  value={activeTourn?.id || ''}
+                  onChange={e => onSelectTournament(e.target.value)}
+                  className="bg-[#143427] text-emerald-100 font-extrabold text-xs px-2.5 py-1 rounded-xl border border-emerald-700 max-w-[180px] truncate"
+                >
+                  {tournaments.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <h2 className="font-extrabold text-sm text-emerald-100 font-display truncate">
+                  {activeTourn?.name || 'Tournament Hub'}
+                </h2>
+              )}
+              <span className="text-[10px] text-emerald-400 font-bold block mt-0.5">
+                {activeTourn ? `${activeTourn.teams.length} Teams • ${activeTourn.oversPerMatch} Overs • ${PLAYOFF_OPTIONS.find(p => p.id === activeTourn.playoffFormat)?.label || 'League'}` : 'No active tournament'}
+              </span>
+            </div>
+          </div>
+
+          {isScorer && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => {
+                  audioHaptics.tapFeedback();
+                  setIsCreateModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-xs flex items-center gap-1 shadow-md shadow-emerald-950/60"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New Tournament</span>
+              </button>
+
+              {tournaments.length > 1 && activeTourn && onDeleteTournament && (
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Delete tournament "${activeTourn.name}"?`)) {
+                      onDeleteTournament(activeTourn.id);
+                    }
+                  }}
+                  title="Delete Tournament"
+                  className="p-1.5 rounded-xl bg-red-950/60 hover:bg-red-900 border border-red-800/60 text-red-400"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Creation Modal / Form */}
-      {isCreating && (
-        <div className="p-5 rounded-3xl bg-[#122c23] border border-emerald-800 space-y-4 shadow-xl">
-          <div className="flex items-center gap-2 pb-2 border-b border-emerald-900/60">
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <h3 className="font-bold text-sm text-emerald-100 font-display">
-              Create New Turf Tournament
+      {/* Champion Banner (If Tournament has concluded!) */}
+      {championTeam && (
+        <div className="p-4 rounded-3xl bg-gradient-to-r from-amber-500/20 via-yellow-500/25 to-emerald-500/20 border-2 border-amber-400/60 shadow-xl text-center space-y-2 animate-fade-in">
+          <div className="flex items-center justify-center gap-2">
+            <Crown className="w-6 h-6 text-amber-400 fill-current animate-bounce" />
+            <h3 className="text-sm font-black text-amber-300 uppercase tracking-widest font-display">
+              TOURNAMENT CHAMPION
             </h3>
+            <Crown className="w-6 h-6 text-amber-400 fill-current animate-bounce" />
           </div>
-
-          <form onSubmit={handleCreate} className="space-y-3 text-xs">
-            <div>
-              <label className="block font-semibold text-emerald-300/80 mb-1">Tournament Name</label>
-              <input
-                type="text"
-                value={tournName}
-                onChange={e => setTournName(e.target.value)}
-                placeholder="e.g. Summer Turf Cup 2026"
-                className="w-full px-3 py-2.5 rounded-xl bg-[#183a2f] border border-emerald-800 text-emerald-100 font-bold focus:outline-none focus:border-emerald-400"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block font-semibold text-emerald-300/80 mb-1">Overs / Match</label>
-                <input
-                  type="number"
-                  min="2"
-                  max="20"
-                  value={overs}
-                  onChange={e => setOvers(Number(e.target.value))}
-                  className="w-full px-3 py-2.5 rounded-xl bg-[#183a2f] border border-emerald-800 text-emerald-100 font-bold"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-emerald-300/80 mb-1">Max Over/Bowler</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="5"
-                  value={maxBowl}
-                  onChange={e => setMaxBowl(Number(e.target.value))}
-                  className="w-full px-3 py-2.5 rounded-xl bg-[#183a2f] border border-emerald-800 text-emerald-100 font-bold"
-                />
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-[#0d2118] border border-emerald-900/40 space-y-1">
-              <span className="font-bold text-emerald-300/90 block">Default 4-Team Round Robin Setup:</span>
-              <p className="text-[11px] text-emerald-300/60 leading-tight">
-                Includes Turf Titans, Royal Strikers, Thunder Bolts, and Shadow Warriors with automated round-robin fixtures and Knockout Playoffs.
-              </p>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-xs shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2"
-            >
-              <span>Generate Tournament & Fixtures</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </form>
+          <div className="text-lg font-black text-white flex items-center justify-center gap-2">
+            <span
+              className="w-4 h-4 rounded-full border border-white/30"
+              style={{ backgroundColor: championTeam.color }}
+            />
+            <span>{championTeam.name}</span>
+          </div>
+          <p className="text-xs text-amber-200/80 font-medium">
+            🏆 Winner of {activeTourn?.name} • Trophy & Golden Bat Holders!
+          </p>
         </div>
       )}
 
@@ -168,7 +212,7 @@ export const TournamentScreen: React.FC<TournamentScreenProps> = ({
             }`}
           >
             <Table className="w-3.5 h-3.5" />
-            <span>Table</span>
+            <span>Standings</span>
           </button>
 
           <button
@@ -181,7 +225,7 @@ export const TournamentScreen: React.FC<TournamentScreenProps> = ({
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
-            <span>Fixtures</span>
+            <span>Fixtures ({activeTourn.fixtures.length})</span>
           </button>
 
           <button
@@ -212,14 +256,21 @@ export const TournamentScreen: React.FC<TournamentScreenProps> = ({
         </div>
       )}
 
-      {/* Tab 1: Points Table */}
+      {/* TAB 1: Points Table & Standings */}
       {activeTourn && activeTab === 'table' && (
-        <div className="p-3 sm:p-4 rounded-3xl bg-[#0f281e] border border-emerald-900/60 space-y-3">
+        <div className="p-3.5 sm:p-4 rounded-3xl bg-[#0f281e] border border-emerald-900/60 space-y-3 shadow-lg">
           <div className="flex items-center justify-between pb-2 border-b border-emerald-900/60">
-            <h3 className="font-extrabold text-xs text-emerald-200 uppercase tracking-wider">
-              Official Points Table & NRR
-            </h3>
-            <span className="text-[10px] text-emerald-400 font-semibold">2 pts for Win</span>
+            <div>
+              <h3 className="font-extrabold text-xs text-emerald-200 uppercase tracking-wider">
+                Official Points Table & NRR
+              </h3>
+              <span className="text-[10px] text-emerald-400/80 font-medium">
+                Win = {activeTourn.pointsForWin || 2} pts • Tie = {activeTourn.pointsForTie || 1} pt
+              </span>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+              {activeTourn.playoffFormat !== 'none' ? 'Playoff Race' : 'League Table'}
+            </span>
           </div>
 
           <div className="overflow-x-auto">
@@ -235,151 +286,312 @@ export const TournamentScreen: React.FC<TournamentScreenProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-emerald-950/60">
-                {pointsTable.map((row, idx) => (
-                  <tr key={row.teamId} className="hover:bg-emerald-950/30">
-                    <td className="py-2.5 flex items-center gap-2">
-                      <span className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                        idx < 2 ? 'bg-emerald-500 text-emerald-950' : 'bg-emerald-950 text-emerald-400'
+                {pointsTable.map((row, idx) => {
+                  const isTopQualifier = (activeTourn.playoffFormat === 'page-playoffs' || activeTourn.playoffFormat === 'semi-finals') && idx < 4;
+                  const isDirectFinal = activeTourn.playoffFormat === 'top-2-final' && idx < 2;
+
+                  return (
+                    <tr 
+                      key={row.teamId} 
+                      className={`hover:bg-emerald-950/30 transition-colors ${
+                        isTopQualifier || isDirectFinal ? 'bg-emerald-950/20' : ''
+                      }`}
+                    >
+                      <td className="py-2.5 flex items-center gap-2">
+                        <span className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                          idx === 0 
+                            ? 'bg-amber-400 text-emerald-950' 
+                            : (idx < 4 && activeTourn.playoffFormat !== 'none' ? 'bg-emerald-500 text-emerald-950' : 'bg-emerald-950 text-emerald-400')
+                        }`}>
+                          {idx + 1}
+                        </span>
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: row.color }}
+                          />
+                          <span className="font-bold text-emerald-100 truncate">{row.teamName}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 text-center font-semibold text-emerald-200/80">{row.played}</td>
+                      <td className="py-2.5 text-center font-bold text-emerald-400">{row.won}</td>
+                      <td className="py-2.5 text-center text-red-400/80">{row.lost}</td>
+                      <td className="py-2.5 text-center font-black text-white text-sm">{row.points}</td>
+                      <td className={`py-2.5 text-right font-mono font-bold ${
+                        row.nrr > 0 ? 'text-emerald-400' : row.nrr < 0 ? 'text-red-400' : 'text-gray-400'
                       }`}>
-                        {idx + 1}
-                      </span>
-                      <span className="font-bold text-emerald-100 truncate">{row.teamName}</span>
-                    </td>
-                    <td className="py-2.5 text-center font-semibold text-emerald-200/80">{row.played}</td>
-                    <td className="py-2.5 text-center font-bold text-emerald-400">{row.won}</td>
-                    <td className="py-2.5 text-center text-red-400/80">{row.lost}</td>
-                    <td className="py-2.5 text-center font-black text-white text-sm">{row.points}</td>
-                    <td className={`py-2.5 text-right font-mono font-bold ${
-                      row.nrr > 0 ? 'text-emerald-400' : row.nrr < 0 ? 'text-red-400' : 'text-gray-400'
-                    }`}>
-                      {row.nrr > 0 ? `+${row.nrr.toFixed(3)}` : row.nrr.toFixed(3)}
-                    </td>
-                  </tr>
-                ))}
+                        {row.nrr > 0 ? `+${row.nrr.toFixed(3)}` : row.nrr.toFixed(3)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           <div className="pt-2 border-t border-emerald-900/60 flex items-center justify-between text-[10px] text-emerald-300/60">
-            <span>• Top 2 qualify for Playoffs</span>
-            <span>• NRR = Run Rate For - Run Rate Against</span>
+            <span>• Qualification: {PLAYOFF_OPTIONS.find(p => p.id === activeTourn.playoffFormat)?.label}</span>
+            <span>• ICC Standard NRR</span>
           </div>
         </div>
       )}
 
-      {/* Tab 2: Fixtures & Matches */}
+      {/* TAB 2: Fixtures & Match Scheduler */}
       {activeTourn && activeTab === 'fixtures' && (
-        <div className="space-y-2">
-          {activeTourn.fixtures.map((fix) => {
-            const isCompleted = fix.status === 'completed';
-            return (
-              <div
-                key={fix.id}
-                className="p-3.5 rounded-2xl bg-[#0f281e] border border-emerald-900/60 space-y-2 hover:border-emerald-700/60 transition-all"
+        <div className="space-y-3">
+          {/* Controls: Filter & Add Fixture */}
+          <div className="flex items-center justify-between gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1 bg-[#0c231a] p-1 rounded-xl border border-emerald-900/60">
+              {(['all', 'group', 'playoff', 'upcoming', 'completed'] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFixtureFilter(f)}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${
+                    fixtureFilter === f ? 'bg-emerald-500 text-emerald-950 font-black' : 'text-emerald-300/60 hover:bg-[#143427]'
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+
+            {isScorer && (
+              <button
+                onClick={() => {
+                  audioHaptics.tapFeedback();
+                  setIsAddFixtureModalOpen(true);
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold text-xs flex items-center gap-1 shadow-md shrink-0"
               >
-                <div className="flex items-center justify-between text-[11px] text-emerald-300/70">
-                  <span className="font-bold uppercase tracking-wider">
-                    Match #{fix.matchNumber} • {fix.stage.toUpperCase()}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                    isCompleted
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                  }`}>
-                    {isCompleted ? 'Finished' : 'Upcoming'}
-                  </span>
-                </div>
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Match</span>
+              </button>
+            )}
+          </div>
 
-                <div className="flex items-center justify-between text-sm font-extrabold text-white">
-                  <span>{fix.teamAName}</span>
-                  <span className="text-xs text-amber-400 font-bold px-2 py-0.5 bg-amber-500/10 rounded-md">VS</span>
-                  <span>{fix.teamBName}</span>
-                </div>
-
-                {fix.summary && (
-                  <div className="text-xs text-emerald-400 font-bold pt-1 border-t border-emerald-900/40">
-                    🏆 {fix.summary}
-                  </div>
-                )}
-
-                {/* Scorer Match Launcher */}
-                {!isCompleted && isScorer && (
+          {/* Fixtures List */}
+          <div className="space-y-2.5">
+            {filteredFixtures.length === 0 ? (
+              <div className="p-6 rounded-3xl bg-[#0f281e] border border-emerald-900/60 text-center space-y-2">
+                <Calendar className="w-8 h-8 text-emerald-500/40 mx-auto" />
+                <p className="text-xs text-emerald-300/70 font-semibold">
+                  No fixtures matching current filter.
+                </p>
+                {isScorer && (
                   <button
-                    onClick={() => {
-                      audioHaptics.tapFeedback();
-                      onLaunchFixtureMatch(fix, activeTourn);
-                    }}
-                    className="w-full mt-2 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
+                    onClick={() => setIsAddFixtureModalOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-500 text-emerald-950 font-bold text-xs"
                   >
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>Score This Match</span>
+                    Schedule Match Now
                   </button>
                 )}
               </div>
-            );
-          })}
+            ) : (
+              filteredFixtures.map(fix => {
+                const isCompleted = fix.status === 'completed';
+                const teamA = activeTourn.teams.find(t => t.id === fix.teamAId);
+                const teamB = activeTourn.teams.find(t => t.id === fix.teamBId);
+
+                return (
+                  <div
+                    key={fix.id}
+                    className="p-3.5 rounded-2xl bg-[#0f281e] border border-emerald-900/60 space-y-2 hover:border-emerald-700/60 transition-all shadow-md"
+                  >
+                    <div className="flex items-center justify-between text-[11px] text-emerald-300/70">
+                      <span className="font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="text-amber-400 font-extrabold">#{fix.matchNumber}</span>
+                        <span>• {fix.stageLabel || fix.stage.toUpperCase()}</span>
+                        {fix.overs && <span className="text-emerald-400 font-normal">({fix.overs} Ov)</span>}
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                          isCompleted
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        }`}>
+                          {isCompleted ? 'Finished' : 'Upcoming'}
+                        </span>
+
+                        {!isCompleted && isScorer && (
+                          <button
+                            onClick={() => handleDeleteFixture(fix.id)}
+                            className="p-1 rounded hover:bg-red-950/60 text-red-400"
+                            title="Delete Match"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm font-extrabold text-white">
+                      <div className="flex items-center gap-1.5 truncate max-w-[42%]">
+                        {teamA && (
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: teamA.color }}
+                          />
+                        )}
+                        <span className="truncate">{fix.teamAName}</span>
+                      </div>
+
+                      <span className="text-xs text-amber-400 font-bold px-2 py-0.5 bg-amber-500/10 rounded-md shrink-0">
+                        VS
+                      </span>
+
+                      <div className="flex items-center gap-1.5 truncate max-w-[42%] justify-end">
+                        <span className="truncate">{fix.teamBName}</span>
+                        {teamB && (
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: teamB.color }}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {fix.summary && (
+                      <div className="text-xs text-emerald-400 font-bold pt-1 border-t border-emerald-900/40 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>{fix.summary}</span>
+                      </div>
+                    )}
+
+                    {/* Scorer Match Launcher */}
+                    {!isCompleted && isScorer && (
+                      <button
+                        onClick={() => {
+                          audioHaptics.tapFeedback();
+                          onLaunchFixtureMatch(fix, activeTourn);
+                        }}
+                        className="w-full mt-1.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>Score This Match</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
 
-      {/* Tab 3: Knockout Playoffs */}
+      {/* TAB 3: Knockout & Playoff Bracket */}
       {activeTourn && activeTab === 'knockout' && (
-        <div className="p-4 rounded-3xl bg-[#0f281e] border border-emerald-900/60 space-y-4">
-          <div className="pb-2 border-b border-emerald-900/60">
-            <h3 className="font-extrabold text-xs text-emerald-200 uppercase tracking-wider">
-              Playoff & Championship Tree
-            </h3>
-          </div>
-
-          <div className="space-y-3">
-            {/* Semi Finals */}
-            <div className="space-y-2">
-              <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">Semi-Finals</span>
-              <div className="p-3 rounded-xl bg-[#143427] border border-emerald-800/60 text-xs">
-                <div className="font-bold text-emerald-100 flex justify-between">
-                  <span>Rank 1 ({pointsTable[0]?.teamName || 'TBD'})</span>
-                  <span className="text-emerald-400">vs</span>
-                  <span>Rank 4 ({pointsTable[3]?.teamName || 'TBD'})</span>
-                </div>
-              </div>
-              <div className="p-3 rounded-xl bg-[#143427] border border-emerald-800/60 text-xs">
-                <div className="font-bold text-emerald-100 flex justify-between">
-                  <span>Rank 2 ({pointsTable[1]?.teamName || 'TBD'})</span>
-                  <span className="text-emerald-400">vs</span>
-                  <span>Rank 3 ({pointsTable[2]?.teamName || 'TBD'})</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Grand Final */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 to-emerald-500/20 border border-amber-500/40 text-center space-y-2">
-              <span className="text-xs font-black text-amber-300 uppercase tracking-widest block">
-                👑 GRAND FINAL
-              </span>
-              <div className="text-sm font-extrabold text-white">
-                Winner Semi 1 vs Winner Semi 2
-              </div>
-              <p className="text-[11px] text-emerald-200/70">
-                Champion wins the CricVault League Trophy & Golden Bat!
+        <div className="p-4 rounded-3xl bg-[#0f281e] border border-emerald-900/60 space-y-4 shadow-lg">
+          <div className="flex items-center justify-between pb-2 border-b border-emerald-900/60">
+            <div>
+              <h3 className="font-extrabold text-xs text-emerald-200 uppercase tracking-wider">
+                Playoff & Championship Tree
+              </h3>
+              <p className="text-[10px] text-emerald-400/80">
+                Format: {PLAYOFF_OPTIONS.find(p => p.id === activeTourn.playoffFormat)?.label || 'Playoff Stage'}
               </p>
             </div>
+
+            {isScorer && (
+              <button
+                onClick={handleSyncPlayoffMatchups}
+                className="px-2.5 py-1 rounded-xl bg-[#143427] hover:bg-[#1d4937] border border-emerald-700 text-emerald-300 text-[11px] font-bold flex items-center gap-1"
+                title="Sync standings into playoff brackets"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Sync Standings</span>
+              </button>
+            )}
+          </div>
+
+          {/* Playoff Matches List */}
+          <div className="space-y-3">
+            {resolvedPlayoffFixtures.filter(f => f.isPlayoff || f.stage !== 'group').map(fix => {
+              const isCompleted = fix.status === 'completed';
+              const teamA = activeTourn.teams.find(t => t.id === fix.teamAId);
+              const teamB = activeTourn.teams.find(t => t.id === fix.teamBId);
+              const isReady = Boolean(fix.teamAId && fix.teamBId && fix.teamAId !== fix.teamBId);
+
+              return (
+                <div
+                  key={fix.id}
+                  className={`p-3.5 rounded-2xl border transition-all ${
+                    fix.stage === 'final' 
+                      ? 'bg-gradient-to-br from-amber-500/15 to-[#122e23] border-amber-500/40 shadow-lg' 
+                      : 'bg-[#143427] border-emerald-800/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-extrabold text-amber-300 uppercase tracking-wider flex items-center gap-1">
+                      <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                      {fix.stageLabel || fix.stage.toUpperCase()}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                      isCompleted 
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+                        : (isReady ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-gray-800 text-gray-400')
+                    }`}>
+                      {isCompleted ? 'Finished' : (isReady ? 'Ready to Play' : 'Waiting for Seeding')}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between text-xs font-bold text-white">
+                    <div className="flex items-center gap-1.5">
+                      {teamA && <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: teamA.color }} />}
+                      <span>{fix.teamAName}</span>
+                    </div>
+                    <span className="text-amber-400 font-extrabold text-[11px] px-2 py-0.5 bg-black/40 rounded-md">VS</span>
+                    <div className="flex items-center gap-1.5">
+                      <span>{fix.teamBName}</span>
+                      {teamB && <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: teamB.color }} />}
+                    </div>
+                  </div>
+
+                  {fix.ruleDescription && (
+                    <p className="text-[10px] text-emerald-300/60 mt-1 italic leading-tight">
+                      ℹ️ {fix.ruleDescription}
+                    </p>
+                  )}
+
+                  {fix.summary && (
+                    <div className="text-xs text-emerald-400 font-bold pt-1.5 mt-1.5 border-t border-emerald-800/40">
+                      🏆 {fix.summary}
+                    </div>
+                  )}
+
+                  {!isCompleted && isReady && isScorer && (
+                    <button
+                      onClick={() => {
+                        audioHaptics.tapFeedback();
+                        onLaunchFixtureMatch(fix, activeTourn);
+                      }}
+                      className="w-full mt-2 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-emerald-400 hover:from-amber-300 hover:to-emerald-300 text-emerald-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>Score Playoff Match</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Tab 4: Tournament Caps & Leaderboards */}
+      {/* TAB 4: Caps & Leaderboards */}
       {activeTourn && activeTab === 'leaders' && leaders && (
         <div className="space-y-3">
           {/* Orange Cap (Most Runs) */}
-          <div className="p-4 rounded-3xl bg-gradient-to-br from-[#422006] to-[#1a2e22] border border-amber-500/40 space-y-3">
+          <div className="p-4 rounded-3xl bg-gradient-to-br from-[#422006] to-[#1a2e22] border border-amber-500/40 space-y-3 shadow-lg">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-amber-500 text-amber-950 font-black flex items-center justify-center text-xs">
+              <div className="w-8 h-8 rounded-xl bg-amber-500 text-amber-950 font-black flex items-center justify-center text-sm shadow-md">
                 🧢
               </div>
               <div>
                 <h4 className="font-black text-xs text-amber-300 uppercase tracking-wider font-display">
                   Orange Cap • Most Runs
                 </h4>
-                <span className="text-[10px] text-amber-200/60">Top tournament run-getters</span>
+                <span className="text-[10px] text-amber-200/60">Top tournament run-scorers</span>
               </div>
             </div>
 
@@ -396,7 +608,7 @@ export const TournamentScreen: React.FC<TournamentScreenProps> = ({
                     </div>
                     <div className="text-right">
                       <span className="font-black text-amber-400 text-sm">{b.runs} runs</span>
-                      <span className="text-[10px] text-emerald-300/60 block">SR {b.sr} • 6s: {b.sixes}</span>
+                      <span className="text-[10px] text-emerald-300/60 block">SR {b.sr} • HS: {b.highScore}</span>
                     </div>
                   </div>
                 ))
@@ -405,9 +617,9 @@ export const TournamentScreen: React.FC<TournamentScreenProps> = ({
           </div>
 
           {/* Purple Cap (Most Wickets) */}
-          <div className="p-4 rounded-3xl bg-gradient-to-br from-[#2e1065] to-[#122e23] border border-purple-500/40 space-y-3">
+          <div className="p-4 rounded-3xl bg-gradient-to-br from-[#2e1065] to-[#122e23] border border-purple-500/40 space-y-3 shadow-lg">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-purple-500 text-purple-950 font-black flex items-center justify-center text-xs">
+              <div className="w-8 h-8 rounded-xl bg-purple-500 text-purple-950 font-black flex items-center justify-center text-sm shadow-md">
                 🎳
               </div>
               <div>
@@ -439,6 +651,28 @@ export const TournamentScreen: React.FC<TournamentScreenProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Creation Modal */}
+      {isCreateModalOpen && (
+        <CreateTournamentModal
+          players={players}
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreateTournament={(t) => {
+            onCreateTournament(t);
+            onSelectTournament(t.id);
+            setIsCreateModalOpen(false);
+          }}
+        />
+      )}
+
+      {/* Add Custom Fixture Modal */}
+      {isAddFixtureModalOpen && activeTourn && (
+        <AddFixtureModal
+          tournament={activeTourn}
+          onClose={() => setIsAddFixtureModalOpen(false)}
+          onAddFixture={handleAddCustomFixture}
+        />
       )}
     </div>
   );

@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Live Matches (Public read for spectators, authenticated or open write for scorers)
+    match /matches/{matchId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Match Archives & History
+    match /match_history/{historyId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Tournaments & Points Tables
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Squad Players Roster
+    match /squad_players/{squadId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+  }
+}

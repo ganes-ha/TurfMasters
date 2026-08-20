@@ -8,6 +8,9 @@ export interface UserSession {
   username: string;
   role: UserRole;
   name: string;
+  uid?: string;
+  email?: string;
+  isCloudAuth?: boolean;
 }
 
 export interface BatterRecord {
@@ -169,6 +172,27 @@ export interface MatchHistoryEntry {
 
 /* ---------- TOURNAMENT & LEAGUE TYPES ---------- */
 
+export type TournamentStage = 
+  | 'group' 
+  | 'qualifier1' 
+  | 'eliminator' 
+  | 'qualifier2' 
+  | 'semi1' 
+  | 'semi2' 
+  | 'quarter' 
+  | 'semi' 
+  | 'final';
+
+export type PlayoffFormat = 
+  | 'page-playoffs'  // IPL Style: Q1 (1v2), Eliminator (3v4), Q2 (LQ1 v WE), Final (WQ1 v WQ2)
+  | 'semi-finals'    // Classic: SF1 (1v4), SF2 (2v3), Final (WSF1 v WSF2)
+  | 'top-2-final'    // Direct Final: Rank 1 vs Rank 2
+  | 'top-6-knockout' // 6-team knockout
+  | 'direct-knockout'// Pure knockout tree
+  | 'none';          // Table winner is champion
+
+export type FixtureGenerationMode = 'auto-single' | 'auto-double' | 'manual';
+
 export interface TournamentTeam {
   id: string;
   name: string;
@@ -182,19 +206,24 @@ export interface TournamentFixture {
   id: string;
   tournamentId: string;
   matchNumber: number;
-  stage: 'group' | 'quarter' | 'semi' | 'final';
+  stage: TournamentStage;
+  stageLabel?: string;
   groupName?: string;
   teamAId: string;
   teamBId: string;
   teamAName: string;
   teamBName: string;
   overs: number;
+  venue?: string;
   date?: string;
   status: 'scheduled' | 'live' | 'completed';
   matchId?: string | number;
   result?: string;
   winnerTeamId?: string;
+  loserTeamId?: string;
   summary?: string;
+  ruleDescription?: string;
+  isPlayoff?: boolean;
 }
 
 export interface PointsTableRow {
@@ -223,6 +252,8 @@ export interface Tournament {
   oversPerMatch: number;
   maxOversPerBowler: number;
   format: 'round-robin' | 'groups-playoffs' | 'knockout';
+  playoffFormat: PlayoffFormat;
+  fixtureMode: FixtureGenerationMode;
   teams: TournamentTeam[];
   groups?: {
     name: string;
@@ -231,6 +262,9 @@ export interface Tournament {
   fixtures: TournamentFixture[];
   status: 'upcoming' | 'ongoing' | 'completed';
   championTeamId?: string;
+  runnerUpTeamId?: string;
+  pointsForWin?: number;
+  pointsForTie?: number;
 }
 
 /* ---------- CAREER & HEAD-TO-HEAD TYPES ---------- */

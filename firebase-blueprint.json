@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "1.0.0",
+  "entities": {
+    "users": {
+      "description": "User profiles and permissions for scorers and spectators",
+      "fields": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "name": { "type": "string", "description": "Display name" },
+        "role": { "type": "string", "description": "User role: scorer, cloudadmin, or viewer" },
+        "createdAt": { "type": "string", "description": "Account creation timestamp" }
+      }
+    },
+    "matches": {
+      "description": "Live and completed cricket matches streamed in real-time",
+      "fields": {
+        "id": { "type": "string", "description": "Match ID" },
+        "status": { "type": "string", "description": "Match status: live, completed, scheduled" },
+        "matchData": { "type": "map", "description": "Full ball-by-ball match state" },
+        "scorerId": { "type": "string", "description": "UID of the scorer who initiated or scored match" },
+        "tournamentId": { "type": "string", "description": "Optional linked tournament ID" },
+        "updatedAt": { "type": "number", "description": "Last updated epoch timestamp" },
+        "createdAt": { "type": "number", "description": "Match creation epoch timestamp" }
+      }
+    },
+    "match_history": {
+      "description": "Archived completed match records and scorecard summaries",
+      "fields": {
+        "id": { "type": "string", "description": "Match history entry ID" },
+        "date": { "type": "string", "description": "Formatted match date" },
+        "title": { "type": "string", "description": "Match title" },
+        "summary": { "type": "string", "description": "Match result summary" },
+        "inn1": { "type": "string", "description": "Innings 1 score line" },
+        "inn2": { "type": "string", "description": "Innings 2 score line" },
+        "result": { "type": "string", "description": "Outcome text" },
+        "full": { "type": "map", "description": "Complete match details and scorecard" },
+        "createdAt": { "type": "number", "description": "Creation timestamp" }
+      }
+    },
+    "tournaments": {
+      "description": "Tournaments, league points tables, fixtures, and playoff brackets",
+      "fields": {
+        "id": { "type": "string", "description": "Tournament ID" },
+        "name": { "type": "string", "description": "Tournament name" },
+        "oversPerMatch": { "type": "number", "description": "Overs per match" },
+        "maxOversPerBowler": { "type": "number", "description": "Max overs per bowler" },
+        "playoffFormat": { "type": "string", "description": "Playoff structure type" },
+        "teams": { "type": "array", "description": "List of participating teams and squads" },
+        "fixtures": { "type": "array", "description": "List of group and playoff fixtures" },
+        "status": { "type": "string", "description": "Tournament status" },
+        "updatedAt": { "type": "number", "description": "Last updated timestamp" }
+      }
+    },
+    "squad_players": {
+      "description": "Master player roster and career stats persisted across devices",
+      "fields": {
+        "id": { "type": "string", "description": "Player record ID" },
+        "players": { "type": "array", "description": "List of player names in master squad pool" },
+        "updatedAt": { "type": "number", "description": "Last updated timestamp" }
+      }
+    }
+  },
+  "roles": [
+    { "role": "viewer", "description": "Spectator viewing live match scores and archives" },
+    { "role": "scorer", "description": "Official scorer scoring balls, wickets, and updating matches" },
+    { "role": "cloudadmin", "description": "Tournament admin managing tournaments and squad rosters" }
+  ],
+  "accessRules": [
+    {
+      "entity": "users",
+      "allow": {
+        "read": "true",
+        "create": "request.auth != null",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "entity": "matches",
+      "allow": {
+        "read": "true",
+        "create": "true",
+        "update": "true",
+        "delete": "true"
+      }
+    },
+    {
+      "entity": "match_history",
+      "allow": {
+        "read": "true",
+        "create": "true",
+        "update": "true",
+        "delete": "true"
+      }
+    },
+    {
+      "entity": "tournaments",
+      "allow": {
+        "read": "true",
+        "create": "true",
+        "update": "true",
+        "delete": "true"
+      }
+    },
+    {
+      "entity": "squad_players",
+      "allow": {
+        "read": "true",
+        "create": "true",
+        "update": "true",
+        "delete": "true"
+      }
+    }
+  ]
+}
