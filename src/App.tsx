@@ -54,6 +54,7 @@ import { ChangeBowlerModal } from './components/ChangeBowlerModal';
 import { ExtrasModal } from './components/ExtrasModal';
 import { SelectBatsmanModal } from './components/SelectBatsmanModal';
 import { ReturnRetiredModal } from './components/ReturnRetiredModal';
+import { RetireBatsmanModal } from './components/RetireBatsmanModal';
 import { AddPlayerMidMatchModal } from './components/AddPlayerMidMatchModal';
 import { NewMatchModal } from './components/NewMatchModal';
 
@@ -110,6 +111,7 @@ export default function App() {
   // Advanced Options Modals
   const [extrasModalType, setExtrasModalType] = useState<'wide' | 'noball' | 'bye' | 'legbye' | null>(null);
   const [batsmanModalRole, setBatsmanModalRole] = useState<'striker' | 'nonstriker' | 'new_batter' | null>(null);
+  const [isRetireModalOpen, setIsRetireModalOpen] = useState<boolean>(false);
   const [isReturnRetiredModalOpen, setIsReturnRetiredModalOpen] = useState<boolean>(false);
   const [isAddPlayerMidMatchModalOpen, setIsAddPlayerMidMatchModalOpen] = useState<boolean>(false);
   const [isNewMatchModalOpen, setIsNewMatchModalOpen] = useState<boolean>(false);
@@ -1038,17 +1040,75 @@ export default function App() {
   const handleRetireBatsman = () => {
     const inn = getCurrentInnings();
     if (!inn) return;
-    const striker = inn.batting[inn.strikerIdx];
-    if (!confirm(`Retire ${striker.name}?`)) return;
+    setIsRetireModalOpen(true);
+  };
 
-    striker.retired = true;
-    striker.howOut = 'retired out';
+  const handleConfirmRetire = (batterIdx: number, retireType: 'hurt' | 'out', nextBatterIdx?: number) => {
+    const inn = getCurrentInnings();
+    if (!inn) return;
 
-    const next = inn.batting.findIndex(b => !b.out && !b.retired && b.order === -1);
-    if (next >= 0) {
-      inn.batting[next].order = inn.battingOrder++;
-      inn.strikerIdx = next;
+    const targetBatter = inn.batting[batterIdx];
+    if (!targetBatter) return;
+
+    const isStriker = batterIdx === inn.strikerIdx;
+
+    if (retireType === 'hurt') {
+      targetBatter.retired = true;
+      targetBatter.out = false;
+      targetBatter.howOut = 'retired hurt';
+    } else {
+      // Retired Out counts as a wicket
+      targetBatter.retired = true;
+      targetBatter.out = true;
+      targetBatter.howOut = 'retired out';
+      inn.wickets += 1;
+
+      inn.fallOfWickets.push({
+        score: inn.total,
+        wicket: inn.wickets,
+        batsman: targetBatter.name,
+        howOut: 'retired out',
+        overs: oversStr(inn.legalBalls)
+      });
     }
+
+    // Assign replacement batsman
+    if (nextBatterIdx !== undefined && nextBatterIdx >= 0) {
+      const nextBatter = inn.batting[nextBatterIdx];
+      if (nextBatter) {
+        if (nextBatter.retired && !nextBatter.out) {
+          // Returning retired hurt player
+          nextBatter.retired = false;
+          nextBatter.howOut = '';
+        } else if (nextBatter.order === -1) {
+          nextBatter.order = inn.battingOrder++;
+        }
+
+        if (isStriker) {
+          inn.strikerIdx = nextBatterIdx;
+        } else {
+          inn.nonStrikerIdx = nextBatterIdx;
+        }
+      }
+    } else {
+      // Find next unbatted batsman if available
+      const nextUnbatted = inn.batting.findIndex(b => !b.out && !b.retired && b.order === -1);
+      if (nextUnbatted >= 0) {
+        inn.batting[nextUnbatted].order = inn.battingOrder++;
+        if (isStriker) {
+          inn.strikerIdx = nextUnbatted;
+        } else {
+          inn.nonStrikerIdx = nextUnbatted;
+        }
+      } else {
+        // Check if all out (less than 2 active/available batters)
+        const remainingBatters = inn.batting.filter(b => !b.out && !b.retired);
+        if (remainingBatters.length < 2 && retireType === 'out') {
+          endInnings(inn, 'allout');
+        }
+      }
+    }
+
     setMatch({ ...match });
   };
 
@@ -1361,6 +1421,15 @@ export default function App() {
           commonPlayer={match?.commonPlayer || null}
           onClose={() => setBatsmanModalRole(null)}
           onSelectBatter={handleSelectBatter}
+        />
+      )}
+
+      {/* Retire Batsman Modal */}
+      {isRetireModalOpen && getCurrentInnings() && (
+        <RetireBatsmanModal
+          innings={getCurrentInnings()!}
+          onClose={() => setIsRetireModalOpen(false)}
+          onConfirmRetire={handleConfirmRetire}
         />
       )}
 

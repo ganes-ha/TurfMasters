@@ -36,6 +36,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ currentUser, onClose, onLo
       console.error('Login error:', err);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
         setError('Invalid email or password. Please check your credentials or register.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Email/Password sign-in is not enabled in the Firebase Console yet.');
       } else {
         setError(err.message || 'Login failed. Please try again.');
       }
@@ -66,6 +68,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ currentUser, onClose, onLo
         setError('This email is already registered. Please sign in instead.');
       } else if (err.code === 'auth/weak-password') {
         setError('Password must be at least 6 characters long.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Email/Password provider is not enabled in Firebase Console (Authentication > Sign-in method).');
       } else {
         setError(err.message || 'Registration failed.');
       }
