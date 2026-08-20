@@ -24,7 +24,7 @@ import {
   User as FirebaseUser
 } from 'firebase/auth';
 
-import firebaseConfig from '../../firebase-applet-config.json';
+import firebaseConfig from '../firebaseConfig';
 import { Match, MatchHistoryEntry, Tournament, UserRole, UserSession } from '../types';
 
 // Initialize Firebase App
