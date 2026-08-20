@@ -21,14 +21,21 @@ export const SelectBatsmanModal: React.FC<SelectBatsmanModalProps> = ({
   // Available batters who are not currently on strike or non-striker, and not out
   const currentStrikerIdx = innings.strikerIdx;
   const currentNonStrikerIdx = innings.nonStrikerIdx;
+  const strikerIsOut = currentStrikerIdx >= 0 && innings.batting[currentStrikerIdx]?.out;
+  const nonStrikerIsOut = currentNonStrikerIdx >= 0 && innings.batting[currentNonStrikerIdx]?.out;
 
   const eligibleBatters = innings.batting
     .map((b, i) => ({ ...b, idx: i }))
     .filter(b => {
-      if (b.out) return false;
-      if (targetRole === 'striker' && b.idx === currentNonStrikerIdx) return false;
-      if (targetRole === 'nonstriker' && b.idx === currentStrikerIdx) return false;
-      if (targetRole === 'new_batter' && (b.idx === currentStrikerIdx || b.idx === currentNonStrikerIdx)) return false;
+      if (b.out || b.retired) return false;
+      if (targetRole === 'striker' && b.idx === currentNonStrikerIdx && !nonStrikerIsOut) return false;
+      if (targetRole === 'nonstriker' && b.idx === currentStrikerIdx && !strikerIsOut) return false;
+      if (targetRole === 'new_batter') {
+        // If replacing dismissed batter, exclude only the active partner
+        if (strikerIsOut && b.idx === currentNonStrikerIdx) return false;
+        if (nonStrikerIsOut && b.idx === currentStrikerIdx) return false;
+        if (!strikerIsOut && !nonStrikerIsOut && (b.idx === currentStrikerIdx || b.idx === currentNonStrikerIdx)) return false;
+      }
       return true;
     });
 

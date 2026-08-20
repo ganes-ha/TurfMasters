@@ -13,13 +13,12 @@
 
   body {
     font-family: var(--font-body);
-    background-color: #06130e;
-    color: #f0fdf4;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
   button, a, input, select, textarea {
@@ -36,20 +35,210 @@
   }
 }
 
+/* =========================================================
+   THEME PALETTES & HIGH-LEGIBILITY EYE-COMFORT STYLES
+   ========================================================= */
+
+/* 1. DEFAULT: MIDNIGHT SLATE (Glare-free, soothing neutral dark) */
+html:not([data-theme]),
+html[data-theme="midnight"],
+body[data-theme="midnight"] {
+  background-color: #0b0f17;
+  color: #f1f5f9;
+}
+
+html[data-theme="midnight"] header {
+  background-color: rgba(11, 15, 23, 0.95) !important;
+  border-color: #1e293b !important;
+}
+
+html[data-theme="midnight"] .bg-\[\#06130e\],
+html[data-theme="midnight"] .bg-\[\#061811\] {
+  background-color: #0b0f17 !important;
+}
+
+html[data-theme="midnight"] .bg-\[\#0f281e\],
+html[data-theme="midnight"] .bg-\[\#143527\],
+html[data-theme="midnight"] .bg-\[\#113828\],
+html[data-theme="midnight"] .bg-\[\#0b261b\],
+html[data-theme="midnight"] .bg-emerald-950\/40,
+html[data-theme="midnight"] .bg-emerald-950\/30,
+html[data-theme="midnight"] .bg-emerald-950\/50,
+html[data-theme="midnight"] .bg-emerald-900\/40 {
+  background-color: #131b2e !important;
+  border-color: #24324d !important;
+}
+
+html[data-theme="midnight"] .border-emerald-900\/60,
+html[data-theme="midnight"] .border-emerald-950\/60,
+html[data-theme="midnight"] .border-emerald-950\/50,
+html[data-theme="midnight"] .border-emerald-800\/60,
+html[data-theme="midnight"] .border-emerald-800\/50,
+html[data-theme="midnight"] .border-emerald-800\/40,
+html[data-theme="midnight"] .border-emerald-600\/30 {
+  border-color: #24324d !important;
+}
+
+html[data-theme="midnight"] .text-emerald-300,
+html[data-theme="midnight"] .text-emerald-400 {
+  color: #38bdf8 !important;
+}
+
+html[data-theme="midnight"] .text-emerald-200,
+html[data-theme="midnight"] .text-emerald-100 {
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="midnight"] .text-emerald-300\/70,
+html[data-theme="midnight"] .text-emerald-300\/80,
+html[data-theme="midnight"] .text-emerald-200\/60,
+html[data-theme="midnight"] .text-emerald-300\/60 {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="midnight"] .border-emerald-400 {
+  border-color: #38bdf8 !important;
+}
+
+html[data-theme="midnight"] .bg-emerald-400 {
+  background-color: #38bdf8 !important;
+}
+
+html[data-theme="midnight"] .bg-emerald-500 {
+  background-color: #0ea5e9 !important;
+}
+
+html[data-theme="midnight"] .from-emerald-600.to-emerald-400 {
+  --tw-gradient-from: #0284c7 !important;
+  --tw-gradient-to: #38bdf8 !important;
+}
+
+html[data-theme="midnight"] .from-\[\#113828\].to-\[\#0b261b\],
+html[data-theme="midnight"] .from-\[\#144230\].to-\[\#0d2b1f\] {
+  --tw-gradient-from: #152033 !important;
+  --tw-gradient-to: #0f172a !important;
+}
+
+/* 2. CLASSIC FOREST (Deep Muted Cricket Turf) */
+html[data-theme="forest"],
+body[data-theme="forest"] {
+  background-color: #061510;
+  color: #f0fdf4;
+}
+
+html[data-theme="forest"] header {
+  background-color: rgba(6, 21, 16, 0.95) !important;
+  border-color: #0f2d22 !important;
+}
+
+/* 3. DAYLIGHT / OUTDOOR HIGH VISIBILITY MODE */
+html[data-theme="daylight"],
+body[data-theme="daylight"] {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+html[data-theme="daylight"] header {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+html[data-theme="daylight"] header h1,
+html[data-theme="daylight"] header .text-emerald-300 {
+  color: #0f172a !important;
+}
+
+html[data-theme="daylight"] header p,
+html[data-theme="daylight"] header .text-emerald-200\/60 {
+  color: #64748b !important;
+}
+
+html[data-theme="daylight"] .bg-\[\#06130e\],
+html[data-theme="daylight"] .bg-\[\#061811\] {
+  background-color: #f1f5f9 !important;
+}
+
+html[data-theme="daylight"] .bg-\[\#0f281e\],
+html[data-theme="daylight"] .bg-\[\#143527\],
+html[data-theme="daylight"] .bg-\[\#113828\],
+html[data-theme="daylight"] .bg-\[\#0b261b\],
+html[data-theme="daylight"] .bg-emerald-950\/40,
+html[data-theme="daylight"] .bg-emerald-950\/30,
+html[data-theme="daylight"] .bg-emerald-950\/50,
+html[data-theme="daylight"] .bg-emerald-900\/40 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+html[data-theme="daylight"] .border-emerald-900\/60,
+html[data-theme="daylight"] .border-emerald-950\/60,
+html[data-theme="daylight"] .border-emerald-950\/50,
+html[data-theme="daylight"] .border-emerald-800\/60,
+html[data-theme="daylight"] .border-emerald-800\/50,
+html[data-theme="daylight"] .border-emerald-800\/40,
+html[data-theme="daylight"] .border-emerald-600\/30 {
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="daylight"] .text-emerald-300,
+html[data-theme="daylight"] .text-emerald-400 {
+  color: #047857 !important;
+}
+
+html[data-theme="daylight"] .text-emerald-200,
+html[data-theme="daylight"] .text-emerald-100 {
+  color: #0f172a !important;
+}
+
+html[data-theme="daylight"] .text-white {
+  color: #0f172a !important;
+}
+
+html[data-theme="daylight"] button.text-white,
+html[data-theme="daylight"] .bg-emerald-600 .text-white,
+html[data-theme="daylight"] .bg-red-600 .text-white,
+html[data-theme="daylight"] .bg-blue-600 .text-white,
+html[data-theme="daylight"] .bg-purple-600 .text-white,
+html[data-theme="daylight"] .bg-amber-500 .text-white,
+html[data-theme="daylight"] [class*="bg-gradient-"] .text-white {
+  color: #ffffff !important;
+}
+
+html[data-theme="daylight"] .text-emerald-300\/70,
+html[data-theme="daylight"] .text-emerald-300\/80,
+html[data-theme="daylight"] .text-emerald-200\/60,
+html[data-theme="daylight"] .text-emerald-300\/60 {
+  color: #64748b !important;
+}
+
+html[data-theme="daylight"] .from-\[\#113828\].to-\[\#0b261b\],
+html[data-theme="daylight"] .from-\[\#144230\].to-\[\#0d2b1f\] {
+  --tw-gradient-from: #ffffff !important;
+  --tw-gradient-to: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+html[data-theme="daylight"] .from-\[\#113828\].to-\[\#0b261b\] .text-white,
+html[data-theme="daylight"] .from-\[\#144230\].to-\[\#0d2b1f\] .text-white {
+  color: #0f172a !important;
+}
+
 /* Custom smooth scrollbars */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #091a13;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #193828;
+  background: rgba(148, 163, 184, 0.25);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #25583f;
+  background: rgba(148, 163, 184, 0.45);
 }
 
 /* Hardware accelerated pulse animation */

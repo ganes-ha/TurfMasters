@@ -12,9 +12,12 @@ import {
   Mic, 
   MicOff, 
   Shield, 
-  PlusCircle 
+  PlusCircle,
+  Sun,
+  Moon,
+  Trees
 } from 'lucide-react';
-import { UserSession } from '../types';
+import { UserSession, AppTheme } from '../types';
 
 interface NavbarProps {
   activeScreen: string;
@@ -28,6 +31,8 @@ interface NavbarProps {
   voiceActive: boolean;
   onToggleVoice: () => void;
   isMatchLive: boolean;
+  theme: AppTheme;
+  onToggleTheme: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -41,7 +46,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleHaptic,
   voiceActive,
   onToggleVoice,
-  isMatchLive
+  isMatchLive,
+  theme,
+  onToggleTheme
 }) => {
   const isScorer = user.role === 'scorer' || user.role === 'cloudadmin';
 
@@ -108,6 +115,33 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="p-2 rounded-lg bg-emerald-950/40 border border-emerald-900/60 text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-900/40 transition-colors"
           >
             <Smartphone className={`w-4 h-4 ${hapticEnabled ? 'text-emerald-400' : 'text-gray-400'}`} />
+          </button>
+
+          {/* Theme Selector Toggle */}
+          <button
+            id="btn-theme-toggle"
+            onClick={onToggleTheme}
+            title={`Current Theme: ${theme === 'midnight' ? 'Midnight Slate' : theme === 'forest' ? 'Stadium Forest' : 'Daylight Outdoor'} (Click to switch)`}
+            className="px-2.5 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-900/60 text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-900/40 transition-all flex items-center gap-1.5 text-xs font-semibold"
+          >
+            {theme === 'midnight' && (
+              <>
+                <Moon className="w-3.5 h-3.5 text-sky-400" />
+                <span className="hidden md:inline text-[11px]">Midnight</span>
+              </>
+            )}
+            {theme === 'forest' && (
+              <>
+                <Trees className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden md:inline text-[11px]">Forest</span>
+              </>
+            )}
+            {theme === 'daylight' && (
+              <>
+                <Sun className="w-3.5 h-3.5 text-amber-500" />
+                <span className="hidden md:inline text-[11px]">Daylight</span>
+              </>
+            )}
           </button>
 
           {/* User Role Badge */}

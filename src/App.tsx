@@ -11,7 +11,8 @@ import {
   TournamentFixture, 
   MatchHistoryEntry, 
   UserSession, 
-  BallDelivery 
+  BallDelivery,
+  AppTheme 
 } from './types';
 import { DEFAULT_PLAYERS } from './data/defaultSquad';
 import { calculateAwards, oversStr } from './utils/cricketRules';
@@ -121,6 +122,27 @@ export default function App() {
   const [hapticEnabled, setHapticEnabled] = useState<boolean>(() => audioHaptics.isHapticEnabled());
   const [voiceActive, setVoiceActive] = useState<boolean>(false);
   const [voiceTranscript, setVoiceTranscript] = useState<string>('');
+
+  // Theme Mode ('midnight' | 'forest' | 'daylight')
+  const [theme, setTheme] = useState<AppTheme>(() => {
+    return safeStorageGet<AppTheme>('cricvault_theme', 'midnight');
+  });
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', theme);
+      document.body.setAttribute('data-theme', theme);
+      localStorage.setItem('cricvault_theme', JSON.stringify(theme));
+    }
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme(prev => {
+      if (prev === 'midnight') return 'daylight';
+      if (prev === 'daylight') return 'forest';
+      return 'midnight';
+    });
+  };
 
   const isScorer = user.role === 'scorer' || user.role === 'cloudadmin';
 
@@ -675,22 +697,26 @@ export default function App() {
     inn.currentOver.push(delivery);
     inn.allDeliveries.push(delivery);
 
-    // Prompt batsman selection modal for the next batter if available
-    const availableNext = inn.batting.filter(
-      b => !b.out && !b.retired && b.order === -1 && b.balls === 0 && b.runs === 0
-    );
+    // Identify survivor partner at crease
+    const survivorIdx = data.outPlayer === 'striker' ? inn.nonStrikerIdx : inn.strikerIdx;
 
-    if (availableNext.length > 0) {
-      // Open batsman selection modal
-      setBatsmanModalRole('new_batter');
-    } else {
-      // Check remaining
-      const remainingBatters = inn.batting.filter(b => !b.out && !b.retired);
-      if (remainingBatters.length < 2) {
-        endInnings(inn, 'allout');
-        return;
-      }
+    // Count active un-dismissed batters remaining in the squad
+    const remainingBatters = inn.batting.filter(b => !b.out && !b.retired);
+    const maxWickets = Math.max(1, inn.batting.length - 1);
+
+    // Eligible available replacement batters (not out, not retired, not the active survivor)
+    const availableNext = inn.batting
+      .map((b, i) => ({ ...b, idx: i }))
+      .filter(b => !b.out && !b.retired && b.idx !== survivorIdx);
+
+    // All out condition: less than 2 batters remaining, or reached max wickets, or no available incoming partner
+    if (remainingBatters.length < 2 || inn.wickets >= maxWickets || availableNext.length === 0) {
+      endInnings(inn, 'allout');
+      return;
     }
+
+    // Prompt batsman selection modal for the next batter
+    setBatsmanModalRole('new_batter');
 
     checkOverAndMatchStatus(inn);
   };
@@ -701,12 +727,19 @@ export default function App() {
 
     if (batsmanModalRole === 'striker') {
       inn.strikerIdx = batterIdx;
+      if (inn.batting[batterIdx].order === -1) {
+        inn.batting[batterIdx].order = inn.battingOrder++;
+      }
     } else if (batsmanModalRole === 'nonstriker') {
       inn.nonStrikerIdx = batterIdx;
+      if (inn.batting[batterIdx].order === -1) {
+        inn.batting[batterIdx].order = inn.battingOrder++;
+      }
     } else if (batsmanModalRole === 'new_batter') {
-      // Assign to whichever spot is vacated/out
+      if (inn.batting[batterIdx].order === -1) {
+        inn.batting[batterIdx].order = inn.battingOrder++;
+      }
       const strikerIsOut = inn.batting[inn.strikerIdx]?.out;
-      inn.batting[batterIdx].order = inn.battingOrder++;
       if (strikerIsOut) {
         inn.strikerIdx = batterIdx;
       } else {
@@ -807,7 +840,8 @@ export default function App() {
 
     // Check all out
     const remaining = inn.batting.filter(b => !b.out && !b.retired);
-    if (remaining.length < 2) {
+    const maxWickets = Math.max(1, inn.batting.length - 1);
+    if (remaining.length < 2 || inn.wickets >= maxWickets) {
       endInnings(inn, 'allout');
       return;
     }
@@ -1247,6 +1281,8 @@ export default function App() {
         voiceActive={voiceActive}
         onToggleVoice={handleToggleVoice}
         isMatchLive={match?.status === 'live'}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       {/* Main Screen Content View */}
@@ -1408,9 +1444,17 @@ export default function App() {
               ? (match.battingFirst === 'A' ? match.teamA.name : match.teamB.name)
               : (match.battingFirst === 'A' ? match.teamB.name : match.teamA.name)
           }
+          bowlingTeamName={
+            match.innings === 1
+              ? (match.battingFirst === 'A' ? match.teamB.name : match.teamA.name)
+              : (match.battingFirst === 'A' ? match.teamA.name : match.teamB.name)
+          }
           innings={getCurrentInnings()!}
           target={match.innings === 2 && match.inn1 ? match.inn1.total + 1 : null}
           totalOvers={match.overs}
+          maxBowl={match.maxBowl}
+          tossWinnerName={match.toss?.winner === 'A' ? match.teamA.name : match.teamB.name}
+          tossDecision={match.toss?.decision}
           firstInningsTotal={match.inn1?.total}
           firstInningsBalls={match.inn1?.legalBalls}
           commonPlayer={match.commonPlayer}

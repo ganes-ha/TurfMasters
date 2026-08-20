@@ -190,17 +190,17 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
     <div className="max-w-md mx-auto py-3 px-3 space-y-3 select-none">
       {/* Unstarted Innings Alert Banner */}
       {(match.status === 'setup' || inn.strikerIdx < 0 || inn.bowlerIdx < 0) && isScorer && (
-        <div className="p-3 rounded-2xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-between gap-3 shadow-md">
+        <div className="p-3.5 rounded-2xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-between gap-3 shadow-md">
           <div className="text-xs text-amber-200">
-            <span className="font-bold text-amber-300 block">⚡ Ready to Play!</span>
-            Confirm openers & opening bowler to start scoring.
+            <span className="font-bold text-amber-300 block">⚡ Ready to Begin Innings {match.innings}!</span>
+            Confirm opening batters & bowler to start Innings {match.innings}.
           </div>
           {onOpenStartInnings && (
             <button
               onClick={onOpenStartInnings}
-              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-amber-950 font-black text-xs shrink-0 shadow transition-all active:scale-95"
+              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-amber-950 font-black text-xs shrink-0 shadow transition-all active:scale-95 flex items-center gap-1"
             >
-              Begin Innings
+              <span>Begin Innings {match.innings}</span>
             </button>
           )}
         </div>

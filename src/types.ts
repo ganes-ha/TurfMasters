@@ -3,6 +3,7 @@
  */
 
 export type UserRole = 'scorer' | 'viewer' | 'cloudadmin';
+export type AppTheme = 'midnight' | 'forest' | 'daylight';
 
 export interface UserSession {
   username: string;

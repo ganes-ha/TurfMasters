@@ -5,9 +5,13 @@ import { Innings } from '../types';
 interface StartInningsModalProps {
   inningsNum: 1 | 2;
   battingTeamName: string;
+  bowlingTeamName?: string;
   innings: Innings;
   target?: number | null;
   totalOvers?: number;
+  maxBowl?: number;
+  tossWinnerName?: string;
+  tossDecision?: 'bat' | 'bowl';
   firstInningsTotal?: number;
   firstInningsBalls?: number;
   commonPlayer: string | null;
@@ -18,9 +22,13 @@ interface StartInningsModalProps {
 export const StartInningsModal: React.FC<StartInningsModalProps> = ({
   inningsNum,
   battingTeamName,
+  bowlingTeamName,
   innings,
   target,
   totalOvers = 5,
+  maxBowl = 1,
+  tossWinnerName,
+  tossDecision,
   firstInningsTotal,
   firstInningsBalls,
   commonPlayer,
@@ -31,7 +39,7 @@ export const StartInningsModal: React.FC<StartInningsModalProps> = ({
   const availableBowlers = innings.bowling.map((b, i) => ({ ...b, idx: i }));
 
   const [strikerIdx, setStrikerIdx] = useState<number>(0);
-  const [nonStrikerIdx, setNonStrikerIdx] = useState<number>(1);
+  const [nonStrikerIdx, setNonStrikerIdx] = useState<number>(1 < availableBatters.length ? 1 : 0);
   const [bowlerIdx, setBowlerIdx] = useState<number>(0);
 
   const totalBalls = totalOvers * 6;
@@ -42,7 +50,7 @@ export const StartInningsModal: React.FC<StartInningsModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (strikerIdx === nonStrikerIdx) {
+    if (availableBatters.length > 1 && strikerIdx === nonStrikerIdx) {
       alert('Striker and Non-Striker must be two different players.');
       return;
     }
@@ -55,9 +63,11 @@ export const StartInningsModal: React.FC<StartInningsModalProps> = ({
         <div className="flex items-center justify-between pb-3 border-b border-emerald-900/60">
           <div>
             <h3 className="font-extrabold text-base text-emerald-100 font-display">
-              Start Innings {inningsNum}
+              Begin Innings {inningsNum}
             </h3>
-            <p className="text-xs text-emerald-400 font-bold">{battingTeamName} Batting</p>
+            <p className="text-xs text-emerald-400 font-bold">
+              {battingTeamName} Batting {bowlingTeamName ? `• ${bowlingTeamName} Bowling` : ''}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -66,6 +76,41 @@ export const StartInningsModal: React.FC<StartInningsModalProps> = ({
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {/* 1st Innings Setup & Match Conditions Banner */}
+        {inningsNum === 1 && (
+          <div className="mt-3 p-3.5 rounded-2xl bg-gradient-to-br from-[#144230] to-[#0d2b1f] border border-emerald-500/40 space-y-2.5 shadow-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-emerald-300 font-extrabold text-xs uppercase tracking-wider">
+                <span>🏏 Match & 1st Innings Setup</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                {totalOvers} Overs ({totalBalls} Balls)
+              </span>
+            </div>
+
+            {tossWinnerName && tossDecision && (
+              <div className="p-2 rounded-xl bg-[#0f281e] border border-emerald-900/60 text-[11px] text-emerald-200 flex items-center gap-1.5 font-medium">
+                <span>🪙</span>
+                <span>
+                  <strong className="text-emerald-100">{tossWinnerName}</strong> won toss & elected to{' '}
+                  <strong className="text-amber-300 uppercase">{tossDecision} first</strong>
+                </span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 pt-0.5 text-[11px]">
+              <div className="p-2 rounded-xl bg-[#0f281e] border border-emerald-900/60 flex flex-col">
+                <span className="text-[10px] text-emerald-300/70 font-semibold uppercase">Bowler Quota</span>
+                <span className="font-extrabold text-emerald-200">Max {maxBowl} ov / bowler</span>
+              </div>
+              <div className="p-2 rounded-xl bg-[#0f281e] border border-emerald-900/60 flex flex-col">
+                <span className="text-[10px] text-emerald-300/70 font-semibold uppercase">1st Innings Target</span>
+                <span className="font-extrabold text-amber-300">Set Benchmark Score</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 2nd Innings Target, Balls, Run Rate & Required Run Rate Banner */}
         {inningsNum === 2 && target !== undefined && target !== null && (
@@ -108,14 +153,17 @@ export const StartInningsModal: React.FC<StartInningsModalProps> = ({
         )}
 
         {commonPlayer && (
-          <div className="mt-3 p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs">
-            Common player <strong>{commonPlayer}</strong> cannot both bat and bowl in the same match.
+          <div className="mt-3 p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-1.5">
+            <ShieldAlert className="w-4 h-4 shrink-0" />
+            <span>
+              Common player <strong>{commonPlayer}</strong> cannot both bat and bowl in the same match.
+            </span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="py-4 space-y-3.5 text-xs">
           <div>
-            <label className="block font-semibold text-emerald-300/80 mb-1">🏏 Opening Striker</label>
+            <label className="block font-semibold text-emerald-300/80 mb-1">🏏 Opening Striker (Faces 1st Ball)</label>
             <select
               value={strikerIdx}
               onChange={e => setStrikerIdx(Number(e.target.value))}
@@ -128,7 +176,7 @@ export const StartInningsModal: React.FC<StartInningsModalProps> = ({
           </div>
 
           <div>
-            <label className="block font-semibold text-emerald-300/80 mb-1">🏏 Non-Striker</label>
+            <label className="block font-semibold text-emerald-300/80 mb-1">🏃 Non-Striker (Runner End)</label>
             <select
               value={nonStrikerIdx}
               onChange={e => setNonStrikerIdx(Number(e.target.value))}
@@ -141,7 +189,7 @@ export const StartInningsModal: React.FC<StartInningsModalProps> = ({
           </div>
 
           <div>
-            <label className="block font-semibold text-emerald-300/80 mb-1">🎳 Opening Bowler</label>
+            <label className="block font-semibold text-emerald-300/80 mb-1">🎳 Opening Bowler (Over 1)</label>
             <select
               value={bowlerIdx}
               onChange={e => setBowlerIdx(Number(e.target.value))}
@@ -156,10 +204,10 @@ export const StartInningsModal: React.FC<StartInningsModalProps> = ({
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-extrabold text-xs shadow-lg flex items-center justify-center gap-2"
+              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-extrabold text-xs shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
               <Play className="w-4 h-4 fill-current" />
-              <span>Begin Innings {inningsNum}</span>
+              <span>Begin Innings {inningsNum} & Play</span>
             </button>
           </div>
         </form>
