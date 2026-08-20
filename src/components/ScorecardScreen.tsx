@@ -175,11 +175,39 @@ export const ScorecardScreen: React.FC<ScorecardScreenProps> = ({
       {currentInn ? (
         <div className="p-4 rounded-3xl bg-[#0f281e] border border-emerald-900/60 space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-emerald-900/60">
-            <h4 className="font-extrabold text-sm text-emerald-200 font-display">
-              {displayTeamName} Innings
-            </h4>
-            <span className="font-bold text-xs text-emerald-400">
-              {currentInn.total}/{currentInn.wickets} ({oversStr(currentInn.legalBalls)} ov)
+            <div>
+              <h4 className="font-extrabold text-sm text-emerald-200 font-display">
+                {displayTeamName} Innings
+              </h4>
+              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-emerald-300/70">
+                <span>
+                  CRR: <strong className="text-emerald-200">
+                    {currentInn.legalBalls > 0 ? (currentInn.total / (currentInn.legalBalls / 6)).toFixed(2) : '0.00'}
+                  </strong>
+                </span>
+                {selectedInnings === 2 && inn1 && (
+                  <>
+                    <span>•</span>
+                    <span>
+                      Target: <strong className="text-amber-300">{inn1.total + 1}</strong>
+                    </span>
+                    <span>•</span>
+                    <span>
+                      RRR: <strong className="text-amber-400">
+                        {Math.max(0, (match.overs * 6) - currentInn.legalBalls) > 0 && Math.max(0, (inn1.total + 1) - currentInn.total) > 0
+                          ? ((Math.max(0, (inn1.total + 1) - currentInn.total) / (Math.max(0, (match.overs * 6) - currentInn.legalBalls) / 6))).toFixed(2)
+                          : '—'}
+                      </strong>
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+            <span className="font-bold text-xs text-emerald-400 text-right">
+              {currentInn.total}/{currentInn.wickets}
+              <div className="text-[10px] text-emerald-300/60 font-normal">
+                {oversStr(currentInn.legalBalls)} / {match.overs} ov
+              </div>
             </span>
           </div>
 

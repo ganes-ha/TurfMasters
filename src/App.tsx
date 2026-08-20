@@ -375,16 +375,44 @@ export default function App() {
   };
 
   const handleScoreRuns = (runs: number) => {
-    if (!match || match.status !== 'live') return;
+    if (!match) return;
     const inn = getCurrentInnings();
     if (!inn || inn.isComplete) return;
+
+    // If innings has not formally selected striker/non-striker/bowler, auto-assign or open modal
+    if (inn.strikerIdx < 0 || inn.nonStrikerIdx < 0 || inn.bowlerIdx < 0) {
+      if (inn.batting.length >= 2 && inn.bowling.length >= 1) {
+        if (inn.strikerIdx < 0) {
+          inn.strikerIdx = 0;
+          inn.batting[0].order = 0;
+        }
+        if (inn.nonStrikerIdx < 0) {
+          inn.nonStrikerIdx = 1;
+          inn.batting[1].order = 1;
+        }
+        if (inn.bowlerIdx < 0) {
+          inn.bowlerIdx = 0;
+        }
+        inn.battingOrder = Math.max(inn.battingOrder, 2);
+        match.status = 'live';
+      } else {
+        setIsStartInningsModalOpen(true);
+        return;
+      }
+    }
+
+    if (match.status !== 'live') {
+      match.status = 'live';
+    }
 
     if (runs === 4) audioHaptics.boundaryFeedback('four');
     else if (runs === 6) audioHaptics.boundaryFeedback('six');
     else audioHaptics.tapFeedback();
 
-    const striker = inn.batting[inn.strikerIdx];
-    const bowler = inn.bowling[inn.bowlerIdx];
+    const striker = inn.batting[inn.strikerIdx] || inn.batting[0];
+    const bowler = inn.bowling[inn.bowlerIdx] || inn.bowling[0];
+
+    if (!striker || !bowler) return;
 
     striker.runs += runs;
     striker.balls += 1;
@@ -399,6 +427,8 @@ export default function App() {
     inn.legalBalls += 1;
     inn.freeHit = false;
 
+    const nonStriker = inn.batting[inn.nonStrikerIdx] || inn.batting[1] || striker;
+
     const delivery: BallDelivery = {
       id: `ball_${Date.now()}`,
       label: runs === 0 ? '•' : String(runs),
@@ -406,7 +436,7 @@ export default function App() {
       runs,
       isLegal: true,
       strikerName: striker.name,
-      nonStrikerName: inn.batting[inn.nonStrikerIdx].name,
+      nonStrikerName: nonStriker.name,
       bowlerName: bowler.name,
       timestamp: Date.now()
     };
@@ -1249,6 +1279,7 @@ export default function App() {
               }
             }}
             onStartRematchSameSquad={() => setIsNewMatchModalOpen(true)}
+            onOpenStartInnings={() => setIsStartInningsModalOpen(true)}
             voiceActive={voiceActive}
             voiceTranscript={voiceTranscript}
           />
@@ -1378,6 +1409,10 @@ export default function App() {
               : (match.battingFirst === 'A' ? match.teamB.name : match.teamA.name)
           }
           innings={getCurrentInnings()!}
+          target={match.innings === 2 && match.inn1 ? match.inn1.total + 1 : null}
+          totalOvers={match.overs}
+          firstInningsTotal={match.inn1?.total}
+          firstInningsBalls={match.inn1?.legalBalls}
           commonPlayer={match.commonPlayer}
           onClose={() => setIsStartInningsModalOpen(false)}
           onConfirm={handleConfirmStartInnings}
