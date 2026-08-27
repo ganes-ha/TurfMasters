@@ -31,7 +31,8 @@ import {
   deleteTournamentFromCloud,
   subscribeToTournaments, 
   saveSquadPlayersToCloud, 
-  subscribeToSquadPlayers 
+  subscribeToSquadPlayers,
+  seedAndSyncAllData
 } from './services/firebase';
 
 // UI Components
@@ -223,7 +224,12 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // 6. Push Live Match state to Firestore in real-time when Scorer scores
+  // 6. Seed and sync initial data (Squad, Active Match, Tournaments, History) to Cloud Firestore & RTDB
+  useEffect(() => {
+    seedAndSyncAllData(match, players, history, tournaments);
+  }, []);
+
+  // 7. Push Live Match state to Firestore & Realtime DB in real-time when Scorer scores
   useEffect(() => {
     if (isScorer && match) {
       syncLiveMatchToCloud(match);

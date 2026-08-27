@@ -4,6 +4,7 @@ export const firebaseConfig = {
   appId: "1:553434852653:web:f38b718ee0b4fb538cf7a4",
   apiKey: "AIzaSyAIDxu3fFziQvkD9VYcudHrnCZDIwrPj5M",
   authDomain: "cricvaultindia.firebaseapp.com",
+  databaseURL: "https://cricvaultindia-default-rtdb.firebaseio.com",
   firestoreDatabaseId: "(default)",
   storageBucket: "cricvaultindia.firebasestorage.app",
   messagingSenderId: "553434852653",

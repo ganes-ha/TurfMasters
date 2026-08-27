@@ -14,6 +14,13 @@ import {
   Unsubscribe 
 } from 'firebase/firestore';
 import { 
+  getDatabase, 
+  ref as rtdbRef, 
+  set as rtdbSet, 
+  remove as rtdbRemove,
+  Database 
+} from 'firebase/database';
+import { 
   getAuth, 
   signInAnonymously as fbSignInAnonymously, 
   signInWithEmailAndPassword as fbSignInWithEmail,
@@ -36,6 +43,37 @@ export const db = (firebaseConfig.firestoreDatabaseId &&
   !firebaseConfig.firestoreDatabaseId.startsWith('ai-studio-')) 
   ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
   : getFirestore(app);
+
+// Initialize Firebase Realtime Database (RTDB)
+export const rtdb: Database | null = (() => {
+  try {
+    return getDatabase(app);
+  } catch (err) {
+    console.warn('Realtime Database initialization warning:', err);
+    return null;
+  }
+})();
+
+// Helper to safely write to Realtime Database
+const safeRtdbSet = async (path: string, value: any): Promise<void> => {
+  if (!rtdb) return;
+  try {
+    const dbRef = rtdbRef(rtdb, path);
+    await rtdbSet(dbRef, value);
+  } catch (e) {
+    console.warn(`RTDB set at ${path} notice:`, e);
+  }
+};
+
+const safeRtdbRemove = async (path: string): Promise<void> => {
+  if (!rtdb) return;
+  try {
+    const dbRef = rtdbRef(rtdb, path);
+    await rtdbRemove(dbRef);
+  } catch (e) {
+    console.warn(`RTDB remove at ${path} notice:`, e);
+  }
+};
 
 // Initialize Firebase Auth
 export const auth = getAuth(app);
@@ -221,10 +259,19 @@ const performLiveSync = async (match: Match): Promise<void> => {
       serverUpdated: serverTimestamp()
     };
 
-    // Parallel non-blocking sync with merge to prevent data loss
-    await Promise.all([
+    const rtdbPayload = {
+      id: matchIdStr,
+      status: match.status || 'live',
+      matchData: sanitizedMatch,
+      updatedAt: Date.now()
+    };
+
+    // Parallel non-blocking sync with merge to Firestore and RTDB
+    await Promise.allSettled([
       setDoc(matchRef, payload, { merge: true }),
-      setDoc(activeRef, payload, { merge: true })
+      setDoc(activeRef, payload, { merge: true }),
+      safeRtdbSet(`matches/${matchIdStr}`, rtdbPayload),
+      safeRtdbSet('matches/active_match', rtdbPayload)
     ]);
   } catch (err) {
     console.warn('Live match sync warning (will retry on next ball):', err);
@@ -263,7 +310,10 @@ export const syncLiveMatchToCloud = (match: Match, immediate: boolean = false): 
 export const clearLiveMatchFromCloud = async (matchId: string): Promise<void> => {
   try {
     if (matchId) {
-      await deleteDoc(doc(db, 'matches', matchId));
+      await Promise.allSettled([
+        deleteDoc(doc(db, 'matches', matchId)),
+        safeRtdbRemove(`matches/${matchId}`)
+      ]);
     }
   } catch (err) {
     console.error('Failed to delete live match document:', err);
@@ -333,11 +383,18 @@ export const saveMatchHistoryToCloud = async (historyEntry: MatchHistoryEntry): 
       ? historyEntry.id 
       : (historyEntry.date ? new Date(historyEntry.date).getTime() : Date.now());
 
-    await setDoc(historyRef, {
-      ...cleanEntry,
-      createdAt: timestamp,
-      updatedAt: Date.now()
-    }, { merge: true });
+    await Promise.allSettled([
+      setDoc(historyRef, {
+        ...cleanEntry,
+        createdAt: timestamp,
+        updatedAt: Date.now()
+      }, { merge: true }),
+      safeRtdbSet(`match_history/${docId}`, {
+        ...cleanEntry,
+        createdAt: timestamp,
+        updatedAt: Date.now()
+      })
+    ]);
   } catch (err) {
     console.error('Failed to archive match to cloud:', err);
   }
@@ -387,7 +444,11 @@ export const subscribeToMatchHistory = (
  */
 export const deleteMatchHistoryFromCloud = async (historyId: string | number): Promise<void> => {
   try {
-    await deleteDoc(doc(db, 'match_history', String(historyId)));
+    const docId = String(historyId);
+    await Promise.allSettled([
+      deleteDoc(doc(db, 'match_history', docId)),
+      safeRtdbRemove(`match_history/${docId}`)
+    ]);
   } catch (err) {
     console.error('Failed to delete match history entry:', err);
   }
@@ -404,10 +465,16 @@ export const saveTournamentToCloud = async (tournament: Tournament): Promise<voi
   try {
     const tournRef = doc(db, 'tournaments', tournament.id);
     const cleanTourn = JSON.parse(JSON.stringify(tournament));
-    await setDoc(tournRef, {
-      ...cleanTourn,
-      updatedAt: Date.now()
-    }, { merge: true });
+    await Promise.allSettled([
+      setDoc(tournRef, {
+        ...cleanTourn,
+        updatedAt: Date.now()
+      }, { merge: true }),
+      safeRtdbSet(`tournaments/${tournament.id}`, {
+        ...cleanTourn,
+        updatedAt: Date.now()
+      })
+    ]);
   } catch (err) {
     console.error('Failed to sync tournament to cloud:', err);
   }
@@ -438,7 +505,10 @@ export const subscribeToTournaments = (
  */
 export const deleteTournamentFromCloud = async (tournamentId: string): Promise<void> => {
   try {
-    await deleteDoc(doc(db, 'tournaments', tournamentId));
+    await Promise.allSettled([
+      deleteDoc(doc(db, 'tournaments', tournamentId)),
+      safeRtdbRemove(`tournaments/${tournamentId}`)
+    ]);
   } catch (err) {
     console.error('Failed to delete tournament from cloud:', err);
   }
@@ -454,11 +524,15 @@ export const deleteTournamentFromCloud = async (tournamentId: string): Promise<v
 export const saveSquadPlayersToCloud = async (playersList: string[]): Promise<void> => {
   try {
     const squadRef = doc(db, 'squad_players', 'master_roster');
-    await setDoc(squadRef, {
+    const payload = {
       id: 'master_roster',
       players: playersList,
       updatedAt: Date.now()
-    }, { merge: true });
+    };
+    await Promise.allSettled([
+      setDoc(squadRef, payload, { merge: true }),
+      safeRtdbSet('squad_players/master_roster', payload)
+    ]);
   } catch (err) {
     console.error('Failed to save squad roster to cloud:', err);
   }
@@ -481,4 +555,35 @@ export const subscribeToSquadPlayers = (
   }, (error) => {
     console.warn('Real-time squad players subscription error:', error);
   });
+};
+
+/**
+ * Initial sync helper to write active match, players, and tournaments immediately
+ */
+export const seedAndSyncAllData = async (
+  currentMatch: Match | null,
+  playersList: string[],
+  historyList: MatchHistoryEntry[],
+  tournamentsList: Tournament[]
+): Promise<void> => {
+  try {
+    if (playersList && playersList.length > 0) {
+      await saveSquadPlayersToCloud(playersList);
+    }
+    if (tournamentsList && tournamentsList.length > 0) {
+      for (const t of tournamentsList) {
+        await saveTournamentToCloud(t);
+      }
+    }
+    if (historyList && historyList.length > 0) {
+      for (const h of historyList) {
+        await saveMatchHistoryToCloud(h);
+      }
+    }
+    if (currentMatch) {
+      await performLiveSync(currentMatch);
+    }
+  } catch (e) {
+    console.warn('Initial cloud seed warning:', e);
+  }
 };
