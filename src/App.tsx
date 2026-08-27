@@ -1476,6 +1476,8 @@ export default function App() {
       {extrasModalType && (
         <ExtrasModal
           type={extrasModalType}
+          match={match}
+          innings={getCurrentInnings()}
           onClose={() => setExtrasModalType(null)}
           onConfirmWide={handleConfirmWide}
           onConfirmNoBall={handleConfirmNoBall}

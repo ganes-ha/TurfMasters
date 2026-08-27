@@ -217,20 +217,20 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
         </div>
       )}
 
-      {/* Live Header Card - Rock-solid mobile display */}
-      <div className="p-3.5 sm:p-4 rounded-3xl bg-gradient-to-b from-[#113828] to-[#0b261b] border border-emerald-600/30 text-center shadow-lg relative overflow-hidden w-full">
-        <div className="flex items-center justify-between text-xs text-emerald-300/80 mb-1 gap-2 min-w-0">
-          <span className="font-extrabold uppercase tracking-wide truncate min-w-0 flex-1 text-left">
+      {/* Live Header Card - Responsive compact display */}
+      <div className="p-3 sm:p-3.5 rounded-3xl bg-gradient-to-b from-[#113828] to-[#0b261b] border border-emerald-600/30 text-center shadow-lg relative overflow-hidden w-full">
+        <div className="flex items-center justify-between text-xs text-emerald-300/80 mb-0.5 gap-2 min-w-0">
+          <span className="font-extrabold uppercase tracking-wide truncate min-w-0 flex-1 text-left text-[11px] sm:text-xs">
             {battingTeamName} • Inn {match.innings}
           </span>
-          <span className="font-semibold text-emerald-200/80 shrink-0 text-right bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/40 text-[11px]">
+          <span className="font-semibold text-emerald-200/80 shrink-0 text-right bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/40 text-[10px] sm:text-[11px]">
             CRR: <strong className="text-emerald-200">{currentRunRate}</strong>
           </span>
         </div>
 
         {/* Big Score */}
-        <div className="flex items-baseline justify-center gap-1 my-0.5 sm:my-1 tabular-nums">
-          <span className="text-4xl sm:text-5xl font-black text-white tracking-tight font-display leading-none">
+        <div className="flex items-baseline justify-center gap-1 my-0.5 tabular-nums">
+          <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight font-display leading-none">
             {inn.total}
           </span>
           <span className="text-2xl sm:text-3xl font-extrabold text-emerald-400/80 leading-none">
@@ -244,7 +244,7 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
 
         {/* Target Info - Responsive wrap without stretching */}
         {target !== null && (
-          <div className="mt-2 pt-2 border-t border-emerald-800/40 text-[11px] sm:text-xs font-bold text-amber-300 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+          <div className="mt-1.5 pt-1.5 border-t border-emerald-800/40 text-[10px] sm:text-xs font-bold text-amber-300 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
             <span className="bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full">
               🎯 Target: <strong>{target}</strong>
             </span>
@@ -272,12 +272,12 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
       )}
 
       {/* Ball-by-Ball Strip with Interactive Click-to-Edit */}
-      <div className="p-2.5 sm:p-3 rounded-2xl bg-[#0f281e] border border-emerald-900/60 w-full overflow-hidden">
-        <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-emerald-300/70 uppercase tracking-wider mb-1.5">
+      <div className="p-2 sm:p-2.5 rounded-2xl bg-[#0f281e] border border-emerald-900/60 w-full overflow-hidden">
+        <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-emerald-300/70 uppercase tracking-wider mb-1">
           <span>This Over Deliveries</span>
           <span className="text-[9px] sm:text-[10px] text-emerald-400/80 lowercase">tap ball to edit</span>
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto py-1 no-scrollbar min-h-[42px] touch-pan-x">
+        <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto py-0.5 no-scrollbar min-h-[38px] touch-pan-x">
           {inn.currentOver.length === 0 ? (
             <span className="text-xs text-emerald-200/40 italic">New over starting...</span>
           ) : (
@@ -297,7 +297,7 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
                     onOpenBallEditor(b, idx);
                   }}
                   title="Click to edit this ball"
-                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl border flex items-center justify-center text-xs font-bold shrink-0 transition-transform active:scale-90 hover:ring-2 hover:ring-emerald-400 ${bgCls}`}
+                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg border flex items-center justify-center text-xs font-bold shrink-0 transition-transform active:scale-90 hover:ring-2 hover:ring-emerald-400 ${bgCls}`}
                 >
                   {b.label}
                 </button>
@@ -308,9 +308,9 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
       </div>
 
       {/* Batter Cards with Change Batsman Selection */}
-      <div className="grid grid-cols-2 gap-2 w-full">
+      <div className="grid grid-cols-2 gap-1.5 sm:gap-2 w-full">
         {/* Striker */}
-        <div className="p-2.5 sm:p-3 rounded-2xl bg-[#143527] border-2 border-emerald-400 shadow-md shadow-emerald-950/40 relative min-w-0 overflow-hidden">
+        <div className="p-2 sm:p-2.5 rounded-2xl bg-[#143527] border-2 border-emerald-400 shadow-md shadow-emerald-950/40 relative min-w-0 overflow-hidden">
           <div className="flex items-center justify-between gap-1 min-w-0">
             <div className="flex items-center gap-1 font-bold text-xs text-emerald-100 truncate min-w-0 flex-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 animate-ping"></span>
@@ -336,18 +336,18 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
               </span>
             </div>
           </div>
-          <div className="flex items-baseline gap-1 mt-1 tabular-nums">
-            <span className="text-lg sm:text-xl font-extrabold text-white">{striker?.runs || 0}</span>
-            <span className="text-[11px] sm:text-xs text-emerald-300/70">({striker?.balls || 0}b)</span>
+          <div className="flex items-baseline gap-1 mt-0.5 tabular-nums">
+            <span className="text-base sm:text-lg font-extrabold text-white">{striker?.runs || 0}</span>
+            <span className="text-[10px] sm:text-[11px] text-emerald-300/70">({striker?.balls || 0}b)</span>
           </div>
-          <div className="text-[9px] sm:text-[10px] text-emerald-300/60 mt-1 flex justify-between gap-1 truncate">
+          <div className="text-[9px] sm:text-[10px] text-emerald-300/60 mt-0.5 flex justify-between gap-1 truncate">
             <span className="truncate">4s:<strong>{striker?.fours || 0}</strong> • 6s:<strong>{striker?.sixes || 0}</strong></span>
             <span className="shrink-0">SR:<strong>{strikeRate(striker?.runs || 0, striker?.balls || 0)}</strong></span>
           </div>
         </div>
 
         {/* Non-Striker */}
-        <div className="p-2.5 sm:p-3 rounded-2xl bg-[#102b20] border border-emerald-900/60 relative min-w-0 overflow-hidden">
+        <div className="p-2 sm:p-2.5 rounded-2xl bg-[#102b20] border border-emerald-900/60 relative min-w-0 overflow-hidden">
           <div className="flex items-center justify-between gap-1 min-w-0">
             <span className="font-bold text-xs text-emerald-200/80 truncate min-w-0 flex-1">
               {nonStriker?.name || 'Non-Striker'}
@@ -367,11 +367,11 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
               </button>
             )}
           </div>
-          <div className="flex items-baseline gap-1 mt-1 tabular-nums">
-            <span className="text-lg sm:text-xl font-bold text-emerald-100">{nonStriker?.runs || 0}</span>
-            <span className="text-[11px] sm:text-xs text-emerald-300/60">({nonStriker?.balls || 0}b)</span>
+          <div className="flex items-baseline gap-1 mt-0.5 tabular-nums">
+            <span className="text-base sm:text-lg font-bold text-emerald-100">{nonStriker?.runs || 0}</span>
+            <span className="text-[10px] sm:text-[11px] text-emerald-300/60">({nonStriker?.balls || 0}b)</span>
           </div>
-          <div className="text-[9px] sm:text-[10px] text-emerald-300/60 mt-1 flex justify-between gap-1 truncate">
+          <div className="text-[9px] sm:text-[10px] text-emerald-300/60 mt-0.5 flex justify-between gap-1 truncate">
             <span className="truncate">4s:<strong>{nonStriker?.fours || 0}</strong> • 6s:<strong>{nonStriker?.sixes || 0}</strong></span>
             <span className="shrink-0">SR:<strong>{strikeRate(nonStriker?.runs || 0, nonStriker?.balls || 0)}</strong></span>
           </div>
@@ -379,11 +379,11 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
       </div>
 
       {/* Bowler Card */}
-      <div className="p-2.5 sm:p-3 rounded-2xl bg-[#102b20] border border-emerald-900/60 flex items-center justify-between gap-2 w-full">
+      <div className="p-2 sm:p-2.5 rounded-2xl bg-[#102b20] border border-emerald-900/60 flex items-center justify-between gap-2 w-full">
         <div className="min-w-0 flex-1">
-          <div className="text-[9px] sm:text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Bowling</div>
+          <div className="text-[8px] sm:text-[9px] text-emerald-400 font-bold uppercase tracking-wider">Bowling</div>
           <div className="font-extrabold text-xs sm:text-sm text-emerald-100 truncate">{bowler?.name || 'Bowler'}</div>
-          <div className="text-[11px] sm:text-xs text-emerald-300/70 mt-0.5 truncate">
+          <div className="text-[10px] sm:text-[11px] text-emerald-300/70 mt-0.5 truncate">
             {oversStr(bowler?.totalBalls || 0)} ov • <strong>{bowler?.runs || 0}r</strong> • <strong>{bowler?.wickets || 0}w</strong> • Econ: {economyRate(bowler?.runs || 0, bowler?.totalBalls || 0)}
           </div>
         </div>
@@ -393,90 +393,118 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
               audioHaptics.tapFeedback();
               onChangeBowler();
             }}
-            className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#173d2d] hover:bg-[#1e4d39] text-emerald-200 font-bold text-[11px] sm:text-xs border border-emerald-700/50 transition-all active:scale-95 shrink-0"
+            className="px-2.5 py-1.5 rounded-xl bg-[#173d2d] hover:bg-[#1e4d39] text-emerald-200 font-bold text-[10px] sm:text-[11px] border border-emerald-700/50 transition-all active:scale-95 shrink-0"
           >
             Change Bowler
           </button>
         )}
       </div>
 
-      {/* Keypad Section (Scorer Only) */}
+      {/* Keypad Section (Scorer Only) - Compact High-Efficiency Layout */}
       {isScorer ? (
-        <div className="pt-0.5 w-full">
-          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+        <div className="pt-0.5 space-y-1 sm:space-y-1.5 w-full">
+          {/* Tier 1: Primary Runs (Compact 6-column row) */}
+          <div className="grid grid-cols-6 gap-1 sm:gap-1.5">
             <button
               onClick={() => onScoreRuns(0)}
-              className="py-3 sm:py-3.5 rounded-2xl bg-[#1a382b] hover:bg-[#204636] active:scale-95 text-emerald-100 font-extrabold text-base sm:text-lg border border-emerald-800/60 transition-all shadow-sm flex items-center justify-center"
+              className="h-10 sm:h-11 md:h-12 rounded-xl bg-[#143427] hover:bg-[#1a4232] active:scale-95 text-emerald-200 font-extrabold text-base sm:text-lg border border-emerald-800/80 transition-all shadow-sm flex flex-col items-center justify-center leading-none"
+              title="0 Runs (Dot Ball)"
             >
-              0
+              <span>0</span>
+              <span className="text-[8px] text-emerald-400/60 font-semibold mt-0.5">DOT</span>
             </button>
+
             <button
               onClick={() => onScoreRuns(1)}
-              className="py-3 sm:py-3.5 rounded-2xl bg-[#1a425f] hover:bg-[#22557a] active:scale-95 text-white font-extrabold text-base sm:text-lg border border-blue-500/40 transition-all shadow-sm flex items-center justify-center"
+              className="h-10 sm:h-11 md:h-12 rounded-xl bg-[#163852] hover:bg-[#1f4a6b] active:scale-95 text-white font-extrabold text-base sm:text-lg border border-blue-500/40 transition-all shadow-sm flex items-center justify-center"
+              title="1 Run (Single)"
             >
               1
             </button>
+
             <button
               onClick={() => onScoreRuns(2)}
-              className="py-3 sm:py-3.5 rounded-2xl bg-[#1a425f] hover:bg-[#22557a] active:scale-95 text-white font-extrabold text-base sm:text-lg border border-blue-500/40 transition-all shadow-sm flex items-center justify-center"
+              className="h-10 sm:h-11 md:h-12 rounded-xl bg-[#163852] hover:bg-[#1f4a6b] active:scale-95 text-white font-extrabold text-base sm:text-lg border border-blue-500/40 transition-all shadow-sm flex items-center justify-center"
+              title="2 Runs (Double)"
             >
               2
             </button>
+
             <button
               onClick={() => onScoreRuns(3)}
-              className="py-3 sm:py-3.5 rounded-2xl bg-[#1a425f] hover:bg-[#22557a] active:scale-95 text-white font-extrabold text-base sm:text-lg border border-blue-500/40 transition-all shadow-sm flex items-center justify-center"
+              className="h-10 sm:h-11 md:h-12 rounded-xl bg-[#163852] hover:bg-[#1f4a6b] active:scale-95 text-white font-extrabold text-base sm:text-lg border border-blue-500/40 transition-all shadow-sm flex items-center justify-center"
+              title="3 Runs"
             >
               3
             </button>
 
             <button
               onClick={() => onScoreRuns(4)}
-              className="py-3 sm:py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-lg sm:text-xl border border-blue-400 transition-all shadow-md shadow-blue-950/60 flex items-center justify-center"
+              className="h-10 sm:h-11 md:h-12 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-base sm:text-lg border border-blue-400 transition-all shadow-md shadow-blue-950/60 flex flex-col items-center justify-center leading-none"
+              title="4 Runs (Boundary)"
             >
-              4
+              <span>4</span>
+              <span className="text-[8px] text-blue-200/80 font-bold mt-0.5">FOUR</span>
             </button>
+
             <button
               onClick={() => onScoreRuns(6)}
-              className="py-3 sm:py-3.5 rounded-2xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-black text-lg sm:text-xl border border-purple-400 transition-all shadow-md shadow-purple-950/60 flex items-center justify-center"
+              className="h-10 sm:h-11 md:h-12 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-black text-base sm:text-lg border border-purple-400 transition-all shadow-md shadow-purple-950/60 flex flex-col items-center justify-center leading-none"
+              title="6 Runs (Maximum)"
             >
-              6
+              <span>6</span>
+              <span className="text-[8px] text-purple-200/80 font-bold mt-0.5">SIX</span>
             </button>
+          </div>
+
+          {/* Tier 2: Extras, Wicket & Undo (Compact 6-column on tablet+, 3x2 on mobile) */}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 sm:gap-1.5">
             <button
               onClick={() => onOpenWideModal()}
-              className="py-3 sm:py-3.5 rounded-2xl bg-[#713f12] hover:bg-[#854d0e] active:scale-95 text-amber-200 font-bold text-[11px] sm:text-xs border border-amber-600/40 transition-all uppercase flex items-center justify-center"
+              className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#613610] hover:bg-[#784314] active:scale-95 text-amber-200 font-bold text-[10px] sm:text-[11px] border border-amber-600/50 transition-all uppercase flex items-center justify-center shadow-sm"
+              title="Wide Delivery"
             >
               Wide +
             </button>
+
             <button
               onClick={() => onOpenNoBallModal()}
-              className="py-3 sm:py-3.5 rounded-2xl bg-[#713f12] hover:bg-[#854d0e] active:scale-95 text-amber-200 font-bold text-[11px] sm:text-xs border border-amber-600/40 transition-all uppercase flex items-center justify-center"
+              className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#613610] hover:bg-[#784314] active:scale-95 text-amber-200 font-bold text-[10px] sm:text-[11px] border border-amber-600/50 transition-all uppercase flex items-center justify-center shadow-sm"
+              title="No Ball Delivery"
             >
               NoBall +
             </button>
 
             <button
               onClick={() => onOpenWicketModal()}
-              className="py-3 sm:py-3.5 rounded-2xl bg-red-700 hover:bg-red-600 active:scale-95 text-white font-black text-xs sm:text-sm border border-red-500 transition-all shadow-md shadow-red-950/60 uppercase flex items-center justify-center"
+              className="h-8 sm:h-9 md:h-10 rounded-xl bg-red-700 hover:bg-red-600 active:scale-95 text-white font-black text-[10px] sm:text-[11px] border border-red-500 transition-all shadow-md shadow-red-950/60 uppercase flex items-center justify-center"
+              title="Wicket Dismissal"
             >
-              Wicket
+              WICKET
             </button>
+
             <button
               onClick={() => onOpenByeModal('bye')}
-              className="py-3 sm:py-3.5 rounded-2xl bg-[#2e3b52] hover:bg-[#3b4b68] active:scale-95 text-slate-200 font-bold text-[11px] sm:text-xs border border-slate-600/40 transition-all uppercase flex items-center justify-center"
+              className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#233147] hover:bg-[#2e405c] active:scale-95 text-slate-200 font-bold text-[10px] sm:text-[11px] border border-slate-600/40 transition-all uppercase flex items-center justify-center shadow-sm"
+              title="Bye Runs"
             >
               Bye +
             </button>
+
             <button
               onClick={() => onOpenByeModal('legbye')}
-              className="py-3 sm:py-3.5 rounded-2xl bg-[#2e3b52] hover:bg-[#3b4b68] active:scale-95 text-slate-200 font-bold text-[11px] sm:text-xs border border-slate-600/40 transition-all uppercase flex items-center justify-center"
+              className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#233147] hover:bg-[#2e405c] active:scale-95 text-slate-200 font-bold text-[10px] sm:text-[11px] border border-slate-600/40 transition-all uppercase flex items-center justify-center shadow-sm"
+              title="Leg Bye Runs"
             >
               LegBye +
             </button>
+
             <button
               onClick={() => onUndo()}
-              className="py-3 sm:py-3.5 rounded-2xl bg-[#374151] hover:bg-[#4b5563] active:scale-95 text-gray-200 font-bold text-[11px] sm:text-xs border border-gray-600/40 flex items-center justify-center gap-1 transition-all"
+              className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#374151] hover:bg-[#4b5563] active:scale-95 text-gray-200 font-bold text-[10px] sm:text-[11px] border border-gray-600/40 flex items-center justify-center gap-1 transition-all shadow-sm"
+              title="Undo Last Ball"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-3 h-3 shrink-0" />
               <span>Undo</span>
             </button>
           </div>
@@ -488,15 +516,15 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
       )}
 
       {/* Quick Tools & Mid-Match Actions */}
-      <div className="pt-1 flex flex-wrap gap-1.5 sm:gap-2 w-full">
+      <div className="pt-0.5 flex flex-wrap gap-1 sm:gap-1.5 w-full">
         <button
           onClick={() => {
             audioHaptics.tapFeedback();
             onSwapStrike();
           }}
-          className="flex-1 min-w-[90px] py-2 sm:py-2.5 px-2 rounded-xl bg-[#122c23] hover:bg-[#183a2f] text-emerald-200 font-bold text-[11px] sm:text-xs border border-emerald-800/60 flex items-center justify-center gap-1.5 transition-all"
+          className="flex-1 min-w-[70px] py-1.5 sm:py-2 px-2 rounded-xl bg-[#122c23] hover:bg-[#183a2f] text-emerald-200 font-bold text-[10px] sm:text-[11px] border border-emerald-800/60 flex items-center justify-center gap-1 transition-all"
         >
-          <ArrowLeftRight className="w-3.5 h-3.5" />
+          <ArrowLeftRight className="w-3 h-3" />
           <span>Swap</span>
         </button>
 
@@ -506,9 +534,9 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
               audioHaptics.tapFeedback();
               onRetireBatsman();
             }}
-            className="flex-1 min-w-[65px] py-2 sm:py-2.5 px-2 rounded-xl bg-[#122c23] hover:bg-[#183a2f] text-emerald-200 font-bold text-[11px] sm:text-xs border border-emerald-800/60 flex items-center justify-center gap-1.5 transition-all"
+            className="flex-1 min-w-[60px] py-1.5 sm:py-2 px-2 rounded-xl bg-[#122c23] hover:bg-[#183a2f] text-emerald-200 font-bold text-[10px] sm:text-[11px] border border-emerald-800/60 flex items-center justify-center gap-1 transition-all"
           >
-            <UserMinus className="w-3.5 h-3.5" />
+            <UserMinus className="w-3 h-3" />
             <span>Retire</span>
           </button>
         )}
@@ -519,9 +547,9 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
               audioHaptics.tapFeedback();
               onOpenReturnRetired();
             }}
-            className="flex-1 min-w-[80px] py-2 sm:py-2.5 px-2 rounded-xl bg-[#122c23] hover:bg-[#183a2f] text-emerald-200 font-bold text-[11px] sm:text-xs border border-emerald-800/60 flex items-center justify-center gap-1.5 transition-all"
+            className="flex-1 min-w-[65px] py-1.5 sm:py-2 px-2 rounded-xl bg-[#122c23] hover:bg-[#183a2f] text-emerald-200 font-bold text-[10px] sm:text-[11px] border border-emerald-800/60 flex items-center justify-center gap-1 transition-all"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-3 h-3" />
             <span>Return</span>
           </button>
         )}
@@ -532,9 +560,9 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
               audioHaptics.tapFeedback();
               onOpenAddPlayerMidMatch();
             }}
-            className="flex-1 min-w-[75px] py-2 sm:py-2.5 px-2 rounded-xl bg-[#122c23] hover:bg-[#183a2f] text-emerald-200 font-bold text-[11px] sm:text-xs border border-emerald-800/60 flex items-center justify-center gap-1.5 transition-all"
+            className="flex-1 min-w-[65px] py-1.5 sm:py-2 px-2 rounded-xl bg-[#122c23] hover:bg-[#183a2f] text-emerald-200 font-bold text-[10px] sm:text-[11px] border border-emerald-800/60 flex items-center justify-center gap-1 transition-all"
           >
-            <UserPlus className="w-3.5 h-3.5" />
+            <UserPlus className="w-3 h-3" />
             <span>+ Player</span>
           </button>
         )}
@@ -544,10 +572,10 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
             audioHaptics.tapFeedback();
             onOpenPosterModal();
           }}
-          className="p-2 sm:p-2.5 rounded-xl bg-[#163e2e] hover:bg-[#1d4f3b] text-emerald-300 border border-emerald-700/60 flex items-center justify-center transition-all"
+          className="p-1.5 sm:p-2 rounded-xl bg-[#163e2e] hover:bg-[#1d4f3b] text-emerald-300 border border-emerald-700/60 flex items-center justify-center transition-all"
           title="Share Poster"
         >
-          <Share2 className="w-4 h-4" />
+          <Share2 className="w-3.5 h-3.5" />
         </button>
 
         <button
@@ -555,10 +583,10 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
             audioHaptics.tapFeedback();
             onOpenQRModal();
           }}
-          className="p-2 sm:p-2.5 rounded-xl bg-[#163e2e] hover:bg-[#1d4f3b] text-emerald-300 border border-emerald-700/60 flex items-center justify-center transition-all"
+          className="p-1.5 sm:p-2 rounded-xl bg-[#163e2e] hover:bg-[#1d4f3b] text-emerald-300 border border-emerald-700/60 flex items-center justify-center transition-all"
           title="Spectator QR"
         >
-          <QrCode className="w-4 h-4" />
+          <QrCode className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
