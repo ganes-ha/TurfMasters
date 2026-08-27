@@ -30,8 +30,6 @@ import {
   saveTournamentToCloud, 
   deleteTournamentFromCloud,
   subscribeToTournaments, 
-  saveSquadPlayersToCloud, 
-  subscribeToSquadPlayers,
   seedAndSyncAllData
 } from './services/firebase';
 
@@ -214,22 +212,12 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // 5. Cloud Master Squad Players
+  // 5. Seed and sync initial data (Active Live Match & History only) to Cloud Firestore & RTDB
   useEffect(() => {
-    const unsub = subscribeToSquadPlayers((remotePlayers) => {
-      if (remotePlayers && remotePlayers.length > 0) {
-        setPlayers(remotePlayers);
-      }
-    });
-    return () => unsub();
+    seedAndSyncAllData(match, history);
   }, []);
 
-  // 6. Seed and sync initial data (Squad, Active Match, Tournaments, History) to Cloud Firestore & RTDB
-  useEffect(() => {
-    seedAndSyncAllData(match, players, history, tournaments);
-  }, []);
-
-  // 7. Push Live Match state to Firestore & Realtime DB in real-time when Scorer scores
+  // 6. Push Live Match state to Firestore & Realtime DB in real-time when Scorer scores
   useEffect(() => {
     if (isScorer && match) {
       syncLiveMatchToCloud(match);
@@ -1384,16 +1372,13 @@ export default function App() {
             onAddPlayer={(name) => {
               const next = [...players, name];
               setPlayers(next);
-              saveSquadPlayersToCloud(next);
             }}
             onRemovePlayer={(name) => {
               const next = players.filter(p => p !== name);
               setPlayers(next);
-              saveSquadPlayersToCloud(next);
             }}
             onResetDefaultSquad={() => {
               setPlayers([...DEFAULT_PLAYERS]);
-              saveSquadPlayersToCloud([...DEFAULT_PLAYERS]);
             }}
           />
         )}

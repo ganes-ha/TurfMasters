@@ -65,6 +65,7 @@ const safeRtdbSet = async (path: string, value: any): Promise<void> => {
   }
 };
 
+// Realtime Database cleanup for live match and history
 const safeRtdbRemove = async (path: string): Promise<void> => {
   if (!rtdb) return;
   try {
@@ -514,67 +515,14 @@ export const deleteTournamentFromCloud = async (tournamentId: string): Promise<v
   }
 };
 
-/* ============================================================
-   CLOUD SQUAD PLAYERS ROSTER
-   ============================================================ */
-
 /**
- * Syncs master squad roster to cloud
- */
-export const saveSquadPlayersToCloud = async (playersList: string[]): Promise<void> => {
-  try {
-    const squadRef = doc(db, 'squad_players', 'master_roster');
-    const payload = {
-      id: 'master_roster',
-      players: playersList,
-      updatedAt: Date.now()
-    };
-    await Promise.allSettled([
-      setDoc(squadRef, payload, { merge: true }),
-      safeRtdbSet('squad_players/master_roster', payload)
-    ]);
-  } catch (err) {
-    console.error('Failed to save squad roster to cloud:', err);
-  }
-};
-
-/**
- * Real-time listener for squad players roster
- */
-export const subscribeToSquadPlayers = (
-  onUpdate: (players: string[]) => void
-): Unsubscribe => {
-  const squadRef = doc(db, 'squad_players', 'master_roster');
-  return onSnapshot(squadRef, (docSnap) => {
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      if (data && Array.isArray(data.players) && data.players.length > 0) {
-        onUpdate(data.players);
-      }
-    }
-  }, (error) => {
-    console.warn('Real-time squad players subscription error:', error);
-  });
-};
-
-/**
- * Initial sync helper to write active match, players, and tournaments immediately
+ * Initial sync helper to write active live match and match history only
  */
 export const seedAndSyncAllData = async (
   currentMatch: Match | null,
-  playersList: string[],
-  historyList: MatchHistoryEntry[],
-  tournamentsList: Tournament[]
+  historyList: MatchHistoryEntry[]
 ): Promise<void> => {
   try {
-    if (playersList && playersList.length > 0) {
-      await saveSquadPlayersToCloud(playersList);
-    }
-    if (tournamentsList && tournamentsList.length > 0) {
-      for (const t of tournamentsList) {
-        await saveTournamentToCloud(t);
-      }
-    }
     if (historyList && historyList.length > 0) {
       for (const h of historyList) {
         await saveMatchHistoryToCloud(h);
