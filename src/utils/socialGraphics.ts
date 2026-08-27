@@ -9,7 +9,11 @@ import { oversStr } from './cricketRules';
 /**
  * 1-Click WhatsApp Formatted Match Summary
  */
-export function generateWhatsAppSummary(match: Match, viewerUrl?: string): string {
+export function generateWhatsAppSummary(
+  match: Match, 
+  viewerUrl?: string, 
+  tournamentName?: string
+): string {
   if (!match) return '';
 
   const awards: MatchAwards | undefined = match.awards;
@@ -22,7 +26,10 @@ export function generateWhatsAppSummary(match: Match, viewerUrl?: string): strin
   const inn1Score = inn1 ? `${inn1.total}/${inn1.wickets} (${oversStr(inn1.legalBalls)} ov)` : 'Yet to bat';
   const inn2Score = inn2 ? `${inn2.total}/${inn2.wickets} (${oversStr(inn2.legalBalls)} ov)` : 'Yet to bat';
 
-  let text = `🏏 *CRICVAULT MATCH SUMMARY*\n`;
+  const resolvedTourn = tournamentName || match.tournamentName;
+  let text = resolvedTourn 
+    ? `🏆 *${resolvedTourn.toUpperCase()}*\n`
+    : `🏏 *CRICVAULT MATCH SUMMARY*\n`;
   text += `━━━━━━━━━━━━━━━━━━\n`;
   text += `⚔️ *${match.teamA.name}* vs *${match.teamB.name}*\n`;
   text += `📅 ${new Date(match.date).toLocaleDateString()} | ${match.overs} Overs Match\n\n`;
@@ -70,8 +77,8 @@ export function generateWhatsAppSummary(match: Match, viewerUrl?: string): strin
   return text;
 }
 
-export function shareToWhatsApp(match: Match, viewerUrl?: string) {
-  const summary = generateWhatsAppSummary(match, viewerUrl);
+export function shareToWhatsApp(match: Match, viewerUrl?: string, tournamentName?: string) {
+  const summary = generateWhatsAppSummary(match, viewerUrl, tournamentName);
   const encoded = encodeURIComponent(summary);
   window.open(`https://wa.me/?text=${encoded}`, '_blank');
 }
@@ -81,7 +88,8 @@ export function shareToWhatsApp(match: Match, viewerUrl?: string) {
  */
 export async function generateMatchPosterCanvas(
   match: Match,
-  aspectRatio: 'story' | 'feed' = 'story'
+  aspectRatio: 'story' | 'feed' = 'story',
+  tournamentName?: string
 ): Promise<HTMLCanvasElement> {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -125,11 +133,24 @@ export async function generateMatchPosterCanvas(
   ctx.fillStyle = orb;
   ctx.fillRect(0, 0, width, 600);
 
-  // Top CricVault Header
+  // Top Header: Show Tournament Name if tournament match, otherwise CricVault without "TURF LEAGUE"
+  const resolvedTournamentName = tournamentName || match.tournamentName;
+  const headerTitle = resolvedTournamentName 
+    ? `🏆 ${resolvedTournamentName.toUpperCase()}`
+    : '🏏 CRICVAULT';
+
   ctx.textAlign = 'center';
   ctx.fillStyle = '#22c55e';
-  ctx.font = 'bold 36px "Outfit", sans-serif';
-  ctx.fillText('🏏 CRICVAULT TURF LEAGUE', width / 2, 100);
+
+  // Responsive font scaling for tournament names
+  if (headerTitle.length > 28) {
+    ctx.font = 'bold 28px "Outfit", sans-serif';
+  } else if (headerTitle.length > 20) {
+    ctx.font = 'bold 32px "Outfit", sans-serif';
+  } else {
+    ctx.font = 'bold 36px "Outfit", sans-serif';
+  }
+  ctx.fillText(headerTitle, width / 2, 100);
 
   ctx.fillStyle = '#94a3b8';
   ctx.font = '500 24px "Plus Jakarta Sans", sans-serif';

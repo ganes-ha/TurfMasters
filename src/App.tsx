@@ -927,6 +927,8 @@ export default function App() {
         inn2: `${completedMatch.inn2 ? completedMatch.inn2.total : 0}/${completedMatch.inn2 ? completedMatch.inn2.wickets : 0}`,
         overs: completedMatch.overs,
         awards: completedMatch.awards,
+        tournamentId: completedMatch.tournamentId,
+        tournamentName: completedMatch.tournamentName,
         full: completedMatch
       };
 
@@ -1213,6 +1215,7 @@ export default function App() {
       inn2: null,
       result: null,
       tournamentId: tournament.id,
+      tournamentName: tournament.name,
       fixtureId: fixture.id
     };
 
@@ -1408,6 +1411,10 @@ export default function App() {
       {isPosterModalOpen && match && (
         <MatchPosterModal
           match={match}
+          tournamentName={
+            match.tournamentName ||
+            (match.tournamentId ? tournaments.find(t => t.id === match.tournamentId)?.name : undefined)
+          }
           onClose={() => setIsPosterModalOpen(false)}
         />
       )}

@@ -6,21 +6,28 @@ import { audioHaptics } from '../utils/audioHaptics';
 
 interface MatchPosterModalProps {
   match: Match;
+  tournamentName?: string;
   onClose: () => void;
 }
 
-export const MatchPosterModal: React.FC<MatchPosterModalProps> = ({ match, onClose }) => {
+export const MatchPosterModal: React.FC<MatchPosterModalProps> = ({ 
+  match, 
+  tournamentName,
+  onClose 
+}) => {
   const [aspectRatio, setAspectRatio] = useState<'story' | 'feed'>('story');
   const [isGenerating, setIsGenerating] = useState<boolean>(true);
   const [copied, setCopied] = useState<boolean>(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  const resolvedTournName = tournamentName || match.tournamentName;
+
   useEffect(() => {
     let isMounted = true;
     setIsGenerating(true);
 
-    generateMatchPosterCanvas(match, aspectRatio)
+    generateMatchPosterCanvas(match, aspectRatio, resolvedTournName)
       .then((canvas) => {
         if (!isMounted) return;
         canvasRef.current = canvas;
@@ -39,7 +46,7 @@ export const MatchPosterModal: React.FC<MatchPosterModalProps> = ({ match, onClo
     return () => {
       isMounted = false;
     };
-  }, [match, aspectRatio]);
+  }, [match, aspectRatio, resolvedTournName]);
 
   const handleDownload = () => {
     if (!canvasRef.current) return;
@@ -167,7 +174,7 @@ export const MatchPosterModal: React.FC<MatchPosterModalProps> = ({ match, onClo
 
           <button
             onClick={() => {
-              shareToWhatsApp(match);
+              shareToWhatsApp(match, undefined, resolvedTournName);
               audioHaptics.tapFeedback();
             }}
             className="w-full py-2.5 rounded-xl bg-[#1f6f43] hover:bg-[#25824f] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all border border-emerald-600/40"

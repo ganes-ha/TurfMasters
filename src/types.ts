@@ -135,6 +135,7 @@ export interface Match {
   result: string | null;
   awards?: MatchAwards;
   tournamentId?: string;
+  tournamentName?: string;
   fixtureId?: string;
   lastUpdated?: number;
 }
@@ -149,6 +150,8 @@ export interface MatchHistoryEntry {
   inn2: string;
   overs: number;
   awards?: MatchAwards;
+  tournamentId?: string;
+  tournamentName?: string;
   playerStats?: Record<string, {
     name: string;
     bat: {

@@ -116,7 +116,7 @@ export const ScorecardScreen: React.FC<ScorecardScreenProps> = ({
         <button
           onClick={() => {
             audioHaptics.tapFeedback();
-            shareToWhatsApp(match);
+            shareToWhatsApp(match, undefined, match.tournamentName);
           }}
           className="p-2.5 rounded-2xl bg-[#1f6f43] hover:bg-[#25824f] text-white font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-md shadow-emerald-950/60 transition-all active:scale-95"
         >
