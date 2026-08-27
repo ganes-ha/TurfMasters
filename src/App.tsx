@@ -1566,6 +1566,7 @@ export default function App() {
       {isAddPlayerMidMatchModalOpen && match && (
         <AddPlayerMidMatchModal
           match={match}
+          savedPlayers={players}
           onClose={() => setIsAddPlayerMidMatchModalOpen(false)}
           onConfirmAddPlayer={handleConfirmAddPlayerMidMatch}
         />
