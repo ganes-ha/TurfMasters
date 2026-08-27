@@ -616,6 +616,7 @@ export default function App() {
     fielder?: string;
     runs?: number;
     onExtra?: boolean;
+    extraType?: 'wide' | 'noball';
   }) => {
     if (!match || match.status !== 'live') return;
     const inn = getCurrentInnings();
@@ -629,17 +630,58 @@ export default function App() {
     const victim = data.outPlayer === 'striker' ? striker : nonStriker;
 
     const completedRuns = data.runs || 0;
-    if (completedRuns > 0 && data.howOut === 'run out' && !data.onExtra) {
-      striker.runs += completedRuns;
-      bowler.runs += completedRuns;
-      inn.total += completedRuns;
+    const isRunOut = data.howOut === 'run out';
+
+    // 1. Handle runs and extras
+    if (isRunOut && data.onExtra) {
+      if (data.extraType === 'wide') {
+        const totalWide = 1 + completedRuns;
+        inn.extras.wides += totalWide;
+        inn.extras.total += totalWide;
+        inn.total += totalWide;
+        bowler.runs += totalWide;
+        bowler.wides += 1;
+      } else {
+        // No Ball
+        inn.extras.noballs += 1;
+        inn.extras.total += 1;
+        inn.total += 1 + completedRuns;
+        bowler.runs += 1 + completedRuns;
+        bowler.noballs += 1;
+        if (completedRuns > 0) {
+          striker.runs += completedRuns;
+        }
+        striker.balls += 1;
+        inn.freeHit = match.freeHitOn;
+      }
+
+      // Strike rotation for completed runs on wide / no-ball
       if (completedRuns % 2 === 1) {
         const temp = inn.strikerIdx;
         inn.strikerIdx = inn.nonStrikerIdx;
         inn.nonStrikerIdx = temp;
       }
+    } else {
+      // Normal delivery or non-extra run-out
+      if (isRunOut && completedRuns > 0) {
+        striker.runs += completedRuns;
+        bowler.runs += completedRuns;
+        inn.total += completedRuns;
+        if (completedRuns % 2 === 1) {
+          const temp = inn.strikerIdx;
+          inn.strikerIdx = inn.nonStrikerIdx;
+          inn.nonStrikerIdx = temp;
+        }
+      }
+
+      striker.balls += 1;
+      bowler.totalBalls += 1;
+      bowler.ballsThisOver = bowler.totalBalls % 6 || 6;
+      inn.legalBalls += 1;
+      inn.freeHit = false;
     }
 
+    // 2. Mark victim out and record dismissal
     victim.out = true;
     victim.howOut = data.fielder ? `${data.howOut} (${data.fielder})` : data.howOut;
     victim.dismissal = {
@@ -648,21 +690,12 @@ export default function App() {
       fielder: data.fielder
     };
 
-    if (!data.onExtra) {
-      striker.balls += 1;
-    }
-
     const bowlerCredits = ['bowled', 'caught', 'stumped', 'lbw', 'hit wicket'].includes(data.howOut);
     if (bowlerCredits) {
       bowler.wickets += 1;
     }
 
     const isLegal = !data.onExtra;
-    if (isLegal) {
-      bowler.totalBalls += 1;
-      bowler.ballsThisOver = bowler.totalBalls % 6 || 6;
-      inn.legalBalls += 1;
-    }
 
     inn.wickets += 1;
     inn.fallOfWickets.push({
@@ -672,12 +705,21 @@ export default function App() {
       howOut: victim.howOut,
       overs: oversStr(inn.legalBalls)
     });
-    inn.freeHit = false;
+
+    let ballLabel = 'W';
+    if (isRunOut) {
+      if (data.onExtra) {
+        const prefix = data.extraType === 'wide' ? 'Wd' : 'Nb';
+        ballLabel = completedRuns > 0 ? `W+${prefix}+${completedRuns}` : `W+${prefix}`;
+      } else {
+        ballLabel = completedRuns > 0 ? `W+${completedRuns}` : 'W';
+      }
+    }
 
     const delivery: BallDelivery = {
       id: `ball_${Date.now()}`,
-      label: 'W',
-      type: 'wicket',
+      label: ballLabel,
+      type: isRunOut && data.onExtra ? (data.extraType || 'wicket') : 'wicket',
       runs: completedRuns,
       isLegal,
       strikerName: striker.name,
@@ -691,17 +733,16 @@ export default function App() {
     inn.currentOver.push(delivery);
     inn.allDeliveries.push(delivery);
 
-    // Identify survivor partner at crease
-    const survivorIdx = data.outPlayer === 'striker' ? inn.nonStrikerIdx : inn.strikerIdx;
+    // Identify active survivor
+    const survivor = data.outPlayer === 'striker' ? nonStriker : striker;
 
     // Count active un-dismissed batters remaining in the squad
     const remainingBatters = inn.batting.filter(b => !b.out && !b.retired);
     const maxWickets = Math.max(1, inn.batting.length - 1);
 
-    // Eligible available replacement batters (not out, not retired, not the active survivor)
+    // Eligible available replacement batters
     const availableNext = inn.batting
-      .map((b, i) => ({ ...b, idx: i }))
-      .filter(b => !b.out && !b.retired && b.idx !== survivorIdx);
+      .filter(b => !b.out && !b.retired && b.name !== survivor.name);
 
     // All out condition: less than 2 batters remaining, or reached max wickets, or no available incoming partner
     if (remainingBatters.length < 2 || inn.wickets >= maxWickets || availableNext.length === 0) {
