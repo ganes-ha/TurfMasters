@@ -2,7 +2,7 @@
  * Cricket Rules & Analytics Engine for Box & Turf Cricket
  */
 
-import { Match, MatchAwards, CareerStats, HeadToHeadStats, Badge, MatchHistoryEntry } from '../types';
+import { Match, MatchAwards, CareerStats, HeadToHeadStats, Badge, MatchHistoryEntry, Innings, BallDelivery } from '../types';
 
 export function oversStr(legalBalls: number): string {
   const overs = Math.floor(legalBalls / 6);
@@ -365,3 +365,170 @@ export const BADGE_DEFS: Badge[] = [
   { id: 'veteran', name: 'Veteran', icon: '🎖️', desc: 'Play 10+ matches', tier: 'silver', check: (s) => s.matches >= 10 },
   { id: 'debut', name: 'First Match', icon: '🌱', desc: 'Play your first match', tier: 'green', check: (s) => s.matches >= 1 }
 ];
+
+/**
+ * Recomputes all batter, bowler, extras, fall-of-wickets, and current-over states
+ * directly and idempotently from the raw `allDeliveries` ledger.
+ */
+export function rebuildInningsFromDeliveries(inn: Innings): void {
+  // 1. Reset all batters (preserve order and retired status)
+  inn.batting.forEach(b => {
+    b.runs = 0;
+    b.balls = 0;
+    b.fours = 0;
+    b.sixes = 0;
+    b.out = false;
+    b.howOut = b.retired ? b.howOut : '';
+    b.dismissal = undefined;
+  });
+
+  // 2. Reset all bowlers
+  inn.bowling.forEach(bw => {
+    bw.totalBalls = 0;
+    bw.ballsThisOver = 0;
+    bw.runs = 0;
+    bw.wickets = 0;
+    bw.wides = 0;
+    bw.noballs = 0;
+    bw.maidens = 0;
+  });
+
+  // 3. Reset aggregate numbers
+  inn.total = 0;
+  inn.wickets = 0;
+  inn.legalBalls = 0;
+  inn.extras = { wides: 0, noballs: 0, byes: 0, legbyes: 0, total: 0 };
+  inn.fallOfWickets = [];
+  inn.freeHit = false;
+
+  // 4. Replay deliveries in order
+  let overBalls = 0;
+  let overRuns = 0;
+  let currentOverDeliveries: BallDelivery[] = [];
+
+  for (const d of inn.allDeliveries) {
+    const striker = inn.batting.find(b => b.name === d.strikerName);
+    const nonStriker = inn.batting.find(b => b.name === d.nonStrikerName);
+    const bowler = inn.bowling.find(b => b.name === d.bowlerName);
+
+    if (d.type === 'runs') {
+      if (striker) {
+        striker.runs += d.runs;
+        striker.balls += 1;
+        if (d.runs === 4) striker.fours += 1;
+        if (d.runs === 6) striker.sixes += 1;
+      }
+      if (bowler) {
+        bowler.runs += d.runs;
+        bowler.totalBalls += 1;
+        bowler.ballsThisOver = bowler.totalBalls % 6 || (bowler.totalBalls > 0 ? 6 : 0);
+      }
+      inn.total += d.runs;
+      inn.legalBalls += 1;
+      overRuns += d.runs;
+      overBalls += 1;
+      inn.freeHit = false;
+    } else if (d.type === 'wide') {
+      const extra = 1 + (d.extraRuns || 0);
+      inn.extras.wides += extra;
+      inn.extras.total += extra;
+      inn.total += extra;
+      if (bowler) {
+        bowler.runs += extra;
+        bowler.wides += 1;
+      }
+      overRuns += extra;
+    } else if (d.type === 'noball') {
+      const totalAdd = 1 + d.runs + (d.extraRuns || 0);
+      inn.extras.noballs += 1;
+      inn.extras.total += 1;
+      if (d.extraRuns) {
+        inn.extras.byes += d.extraRuns;
+        inn.extras.total += d.extraRuns;
+      }
+      inn.total += totalAdd;
+      if (striker && d.runs > 0) {
+        striker.runs += d.runs;
+        striker.balls += 1;
+        if (d.runs === 4) striker.fours += 1;
+        if (d.runs === 6) striker.sixes += 1;
+      }
+      if (bowler) {
+        bowler.runs += totalAdd;
+        bowler.noballs += 1;
+      }
+      overRuns += totalAdd;
+      inn.freeHit = true;
+    } else if (d.type === 'bye' || d.type === 'legbye') {
+      const runs = d.runs || 0;
+      if (d.type === 'bye') inn.extras.byes += runs;
+      else inn.extras.legbyes += runs;
+      inn.extras.total += runs;
+      inn.total += runs;
+      inn.legalBalls += 1;
+      if (striker) striker.balls += 1;
+      if (bowler) {
+        bowler.totalBalls += 1;
+        bowler.ballsThisOver = bowler.totalBalls % 6 || (bowler.totalBalls > 0 ? 6 : 0);
+      }
+      overRuns += runs;
+      overBalls += 1;
+      inn.freeHit = false;
+    } else if (d.type === 'wicket') {
+      const victim = inn.batting.find(b => b.name === (d.outPlayer === 'nonstriker' ? d.nonStrikerName : d.strikerName)) || striker;
+      if (victim) {
+        victim.out = true;
+        victim.howOut = d.howOut || 'out';
+        victim.dismissal = {
+          type: d.howOut || 'out',
+          bowler: bowler?.name,
+          fielder: d.fielder
+        };
+      }
+      const completed = d.runs || 0;
+      if (completed > 0) {
+        if (striker) striker.runs += completed;
+        if (bowler) bowler.runs += completed;
+        inn.total += completed;
+        overRuns += completed;
+      }
+      if (d.isLegal) {
+        if (striker) striker.balls += 1;
+        if (bowler) {
+          bowler.totalBalls += 1;
+          bowler.ballsThisOver = bowler.totalBalls % 6 || (bowler.totalBalls > 0 ? 6 : 0);
+        }
+        inn.legalBalls += 1;
+        overBalls += 1;
+      }
+      const bowlerCredited = ['bowled', 'caught', 'stumped', 'lbw', 'hit wicket'].some(k => (d.howOut || '').toLowerCase().includes(k));
+      if (bowlerCredited && bowler) {
+        bowler.wickets += 1;
+      }
+      inn.wickets += 1;
+      inn.fallOfWickets.push({
+        score: inn.total,
+        wicket: inn.wickets,
+        batsman: victim?.name || 'Batsman',
+        howOut: victim?.howOut || 'out',
+        overs: oversStr(inn.legalBalls)
+      });
+      inn.freeHit = false;
+    }
+
+    currentOverDeliveries.push(d);
+
+    // Over boundary check (every 6 legal balls)
+    if (overBalls === 6) {
+      if (overRuns === 0 && bowler) {
+        bowler.maidens += 1;
+      }
+      overBalls = 0;
+      overRuns = 0;
+      currentOverDeliveries = [];
+    }
+  }
+
+  inn.currentOver = currentOverDeliveries;
+}
+
