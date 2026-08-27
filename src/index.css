@@ -134,13 +134,13 @@ html[data-theme="forest"] header {
 /* 3. DAYLIGHT / OUTDOOR HIGH VISIBILITY MODE */
 html[data-theme="daylight"],
 body[data-theme="daylight"] {
-  background-color: #f1f5f9;
+  background-color: #f8fafc;
   color: #0f172a;
 }
 
 html[data-theme="daylight"] header {
   background-color: rgba(255, 255, 255, 0.98) !important;
-  border-color: #cbd5e1 !important;
+  border-color: #e2e8f0 !important;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
@@ -154,34 +154,133 @@ html[data-theme="daylight"] header .text-emerald-200\/60 {
   color: #64748b !important;
 }
 
-html[data-theme="daylight"] .bg-\[\#06130e\],
-html[data-theme="daylight"] .bg-\[\#061811\] {
+/* Header buttons in daylight mode */
+html[data-theme="daylight"] #btn-auth-badge {
+  background-color: #d1fae5 !important;
+  border-color: #a7f3d0 !important;
+  color: #065f46 !important;
+}
+
+html[data-theme="daylight"] #btn-sound-toggle,
+html[data-theme="daylight"] #btn-haptic-toggle,
+html[data-theme="daylight"] #btn-theme-toggle {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="daylight"] #btn-voice-toggle {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Nav bar tabs in daylight */
+html[data-theme="daylight"] nav {
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="daylight"] nav button {
+  color: #64748b !important;
+}
+
+html[data-theme="daylight"] nav button:hover {
+  color: #0f172a !important;
   background-color: #f1f5f9 !important;
 }
 
+html[data-theme="daylight"] nav button.text-emerald-400 {
+  color: #047857 !important;
+  border-color: #047857 !important;
+  background-color: #ecfdf5 !important;
+}
+
+/* All dark surfaces converted to crisp white / light gray cards */
+html[data-theme="daylight"] .bg-\[\#06130e\],
+html[data-theme="daylight"] .bg-\[\#061811\],
+html[data-theme="daylight"] .bg-\[\#061510\],
+html[data-theme="daylight"] .bg-\[\#0b0f17\],
 html[data-theme="daylight"] .bg-\[\#0f281e\],
 html[data-theme="daylight"] .bg-\[\#143527\],
 html[data-theme="daylight"] .bg-\[\#113828\],
 html[data-theme="daylight"] .bg-\[\#0b261b\],
+html[data-theme="daylight"] .bg-\[\#122c23\],
+html[data-theme="daylight"] .bg-\[\#183a2f\],
+html[data-theme="daylight"] .bg-\[\#143427\],
+html[data-theme="daylight"] .bg-\[\#163e2e\],
+html[data-theme="daylight"] .bg-\[\#102b20\],
+html[data-theme="daylight"] .bg-\[\#0c231a\],
+html[data-theme="daylight"] .bg-\[\#0e271e\],
+html[data-theme="daylight"] .bg-\[\#153426\],
+html[data-theme="daylight"] .bg-\[\#173d2d\],
+html[data-theme="daylight"] .bg-\[\#1e4d3a\],
+html[data-theme="daylight"] .bg-\[\#1d4f3b\],
+html[data-theme="daylight"] .bg-\[\#153a2b\],
+html[data-theme="daylight"] .bg-\[\#10251c\],
 html[data-theme="daylight"] .bg-emerald-950\/40,
 html[data-theme="daylight"] .bg-emerald-950\/30,
 html[data-theme="daylight"] .bg-emerald-950\/50,
-html[data-theme="daylight"] .bg-emerald-900\/40 {
+html[data-theme="daylight"] .bg-emerald-950\/60,
+html[data-theme="daylight"] .bg-emerald-950\/70,
+html[data-theme="daylight"] .bg-emerald-900\/40,
+html[data-theme="daylight"] .bg-emerald-900\/60 {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 
+/* Gradients on dark cards in daylight mode */
+html[data-theme="daylight"] .from-\[\#143d2c\],
+html[data-theme="daylight"] .from-\[\#113828\],
+html[data-theme="daylight"] .from-\[\#144230\],
+html[data-theme="daylight"] .from-\[\#0f281e\],
+html[data-theme="daylight"] .from-\[\#102b20\],
+html[data-theme="daylight"] [class*="bg-gradient-to-b"] {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* Modals & Dialog overlays */
+html[data-theme="daylight"] [role="dialog"],
+html[data-theme="daylight"] .fixed .bg-\[\#0f281e\],
+html[data-theme="daylight"] .fixed .bg-\[\#0b1e16\],
+html[data-theme="daylight"] .fixed .bg-\[\#061510\] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Form Inputs and Select elements */
+html[data-theme="daylight"] select,
+html[data-theme="daylight"] input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="daylight"] textarea {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="daylight"] select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Borders */
 html[data-theme="daylight"] .border-emerald-900\/60,
 html[data-theme="daylight"] .border-emerald-950\/60,
 html[data-theme="daylight"] .border-emerald-950\/50,
 html[data-theme="daylight"] .border-emerald-800\/60,
 html[data-theme="daylight"] .border-emerald-800\/50,
 html[data-theme="daylight"] .border-emerald-800\/40,
+html[data-theme="daylight"] .border-emerald-700\/50,
+html[data-theme="daylight"] .border-emerald-700\/60,
+html[data-theme="daylight"] .border-emerald-600\/50,
 html[data-theme="daylight"] .border-emerald-600\/30 {
   border-color: #e2e8f0 !important;
 }
 
+/* Primary and vibrant emerald colors */
 html[data-theme="daylight"] .text-emerald-300,
 html[data-theme="daylight"] .text-emerald-400 {
   color: #047857 !important;
@@ -192,37 +291,133 @@ html[data-theme="daylight"] .text-emerald-100 {
   color: #0f172a !important;
 }
 
+/* Default headings and body text */
 html[data-theme="daylight"] .text-white {
   color: #0f172a !important;
 }
 
+/* Keep white text on prominent colored action buttons */
 html[data-theme="daylight"] button.text-white,
+html[data-theme="daylight"] .bg-emerald-600,
 html[data-theme="daylight"] .bg-emerald-600 .text-white,
+html[data-theme="daylight"] .bg-red-600,
 html[data-theme="daylight"] .bg-red-600 .text-white,
+html[data-theme="daylight"] .bg-red-700,
+html[data-theme="daylight"] .bg-red-700 .text-white,
+html[data-theme="daylight"] .bg-blue-600,
 html[data-theme="daylight"] .bg-blue-600 .text-white,
+html[data-theme="daylight"] .bg-purple-600,
 html[data-theme="daylight"] .bg-purple-600 .text-white,
+html[data-theme="daylight"] .bg-amber-500,
 html[data-theme="daylight"] .bg-amber-500 .text-white,
-html[data-theme="daylight"] [class*="bg-gradient-"] .text-white {
+html[data-theme="daylight"] .bg-emerald-500 {
   color: #ffffff !important;
 }
 
+html[data-theme="daylight"] [class*="bg-gradient-to-r"] {
+  color: #ffffff !important;
+}
+
+html[data-theme="daylight"] [class*="bg-gradient-to-r"] * {
+  color: inherit;
+}
+
+/* Secondary muted text */
 html[data-theme="daylight"] .text-emerald-300\/70,
 html[data-theme="daylight"] .text-emerald-300\/80,
 html[data-theme="daylight"] .text-emerald-200\/60,
+html[data-theme="daylight"] .text-emerald-200\/70,
+html[data-theme="daylight"] .text-emerald-200\/80,
 html[data-theme="daylight"] .text-emerald-300\/60 {
   color: #64748b !important;
 }
 
-html[data-theme="daylight"] .from-\[\#113828\].to-\[\#0b261b\],
-html[data-theme="daylight"] .from-\[\#144230\].to-\[\#0d2b1f\] {
-  --tw-gradient-from: #ffffff !important;
-  --tw-gradient-to: #f8fafc !important;
-  border-color: #cbd5e1 !important;
+/* Badge pills contrast in daylight */
+html[data-theme="daylight"] .bg-amber-500\/20 {
+  background-color: #fef3c7 !important;
+  border-color: #fde68a !important;
+  color: #92400e !important;
+}
+html[data-theme="daylight"] .text-amber-300 {
+  color: #92400e !important;
 }
 
-html[data-theme="daylight"] .from-\[\#113828\].to-\[\#0b261b\] .text-white,
-html[data-theme="daylight"] .from-\[\#144230\].to-\[\#0d2b1f\] .text-white {
+html[data-theme="daylight"] .bg-sky-500\/20 {
+  background-color: #e0f2fe !important;
+  border-color: #bae6fd !important;
+  color: #0369a1 !important;
+}
+html[data-theme="daylight"] .text-sky-300,
+html[data-theme="daylight"] .text-sky-400 {
+  color: #0369a1 !important;
+}
+
+html[data-theme="daylight"] .bg-purple-500\/20 {
+  background-color: #f3e8ff !important;
+  border-color: #e9d5ff !important;
+  color: #7e22ce !important;
+}
+html[data-theme="daylight"] .text-purple-300,
+html[data-theme="daylight"] .text-purple-400 {
+  color: #7e22ce !important;
+}
+
+html[data-theme="daylight"] .bg-emerald-500\/20 {
+  background-color: #d1fae5 !important;
+  border-color: #a7f3d0 !important;
+  color: #065f46 !important;
+}
+
+/* Sub-stat cards inside career / stats */
+html[data-theme="daylight"] .grid .bg-\[\#143427\],
+html[data-theme="daylight"] .grid .bg-\[\#183a2f\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Keypad runs buttons in daylight */
+html[data-theme="daylight"] .bg-\[\#1a382b\] {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
   color: #0f172a !important;
+}
+
+html[data-theme="daylight"] .bg-\[\#1a425f\] {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1d4ed8 !important;
+}
+
+html[data-theme="daylight"] .bg-\[\#713f12\] {
+  background-color: #fef3c7 !important;
+  border-color: #fde68a !important;
+  color: #92400e !important;
+}
+
+html[data-theme="daylight"] .bg-\[\#2e3b52\] {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+html[data-theme="daylight"] .bg-\[\#374151\] {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+/* Tables in scorecard */
+html[data-theme="daylight"] table {
+  color: #0f172a !important;
+}
+
+html[data-theme="daylight"] tr.border-b,
+html[data-theme="daylight"] tbody.divide-y > * {
+  border-color: #f1f5f9 !important;
+}
+
+html[data-theme="daylight"] tbody tr:hover {
+  background-color: #f8fafc !important;
 }
 
 /* Custom smooth scrollbars */
