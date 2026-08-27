@@ -173,13 +173,13 @@ export const ScorecardScreen: React.FC<ScorecardScreenProps> = ({
 
       {/* Innings Scorecard Table */}
       {currentInn ? (
-        <div className="p-4 rounded-3xl bg-[#0f281e] border border-emerald-900/60 space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-emerald-900/60">
-            <div>
-              <h4 className="font-extrabold text-sm text-emerald-200 font-display">
+        <div className="p-3 sm:p-4 rounded-3xl bg-[#0f281e] border border-emerald-900/60 space-y-3 sm:space-y-4 overflow-hidden w-full">
+          <div className="flex items-center justify-between pb-2 border-b border-emerald-900/60 gap-2 min-w-0">
+            <div className="min-w-0 flex-1">
+              <h4 className="font-extrabold text-xs sm:text-sm text-emerald-200 font-display truncate">
                 {displayTeamName} Innings
               </h4>
-              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-emerald-300/70">
+              <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[10px] sm:text-[11px] text-emerald-300/70">
                 <span>
                   CRR: <strong className="text-emerald-200">
                     {currentInn.legalBalls > 0 ? (currentInn.total / (currentInn.legalBalls / 6)).toFixed(2) : '0.00'}
@@ -203,7 +203,7 @@ export const ScorecardScreen: React.FC<ScorecardScreenProps> = ({
                 )}
               </div>
             </div>
-            <span className="font-bold text-xs text-emerald-400 text-right">
+            <span className="font-bold text-xs sm:text-sm text-emerald-400 text-right shrink-0">
               {currentInn.total}/{currentInn.wickets}
               <div className="text-[10px] text-emerald-300/60 font-normal">
                 {oversStr(currentInn.legalBalls)} / {match.overs} ov
@@ -212,32 +212,32 @@ export const ScorecardScreen: React.FC<ScorecardScreenProps> = ({
           </div>
 
           {/* Batting Breakdown Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto no-scrollbar -mx-1 sm:mx-0">
+            <table className="w-full text-left text-xs min-w-[300px]">
               <thead>
-                <tr className="border-b border-emerald-900/60 text-emerald-300/60 text-[10px] uppercase font-bold">
+                <tr className="border-b border-emerald-900/60 text-emerald-300/60 text-[9px] sm:text-[10px] uppercase font-bold">
                   <th className="pb-1.5">Batter</th>
-                  <th className="pb-1.5 text-right">R</th>
-                  <th className="pb-1.5 text-right">B</th>
-                  <th className="pb-1.5 text-right">4s</th>
-                  <th className="pb-1.5 text-right">6s</th>
-                  <th className="pb-1.5 text-right">SR</th>
+                  <th className="pb-1.5 text-right px-1">R</th>
+                  <th className="pb-1.5 text-right px-1">B</th>
+                  <th className="pb-1.5 text-right px-1">4s</th>
+                  <th className="pb-1.5 text-right px-1">6s</th>
+                  <th className="pb-1.5 text-right pl-1">SR</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-emerald-950/60">
                 {batters.map((b) => (
                   <tr key={b.name} className="hover:bg-emerald-950/30">
-                    <td className="py-2 pr-2">
-                      <div className="font-bold text-emerald-100">{b.name}</div>
-                      <div className="text-[10px] text-emerald-400/80 mt-0.5">
+                    <td className="py-2 pr-1.5 max-w-[120px]">
+                      <div className="font-bold text-emerald-100 text-xs truncate">{b.name}</div>
+                      <div className="text-[9px] sm:text-[10px] text-emerald-400/80 truncate">
                         {b.out ? b.howOut || 'out' : b.retired ? 'retired' : 'not out *'}
                       </div>
                     </td>
-                    <td className="py-2 text-right font-extrabold text-white">{b.runs}</td>
-                    <td className="py-2 text-right text-emerald-300/70">{b.balls}</td>
-                    <td className="py-2 text-right text-emerald-300/70">{b.fours}</td>
-                    <td className="py-2 text-right text-emerald-300/70">{b.sixes}</td>
-                    <td className="py-2 text-right text-emerald-400/80 font-mono">
+                    <td className="py-2 text-right font-extrabold text-white text-xs px-1">{b.runs}</td>
+                    <td className="py-2 text-right text-emerald-300/70 text-xs px-1">{b.balls}</td>
+                    <td className="py-2 text-right text-emerald-300/70 text-xs px-1">{b.fours}</td>
+                    <td className="py-2 text-right text-emerald-300/70 text-xs px-1">{b.sixes}</td>
+                    <td className="py-2 text-right text-emerald-400/80 font-mono text-xs pl-1">
                       {strikeRate(b.runs, b.balls)}
                     </td>
                   </tr>
@@ -248,12 +248,12 @@ export const ScorecardScreen: React.FC<ScorecardScreenProps> = ({
 
           {/* Extras & Totals */}
           <div className="pt-2 border-t border-emerald-900/60 space-y-1 text-xs">
-            <div className="flex justify-between text-emerald-300/80">
+            <div className="flex justify-between text-emerald-300/80 text-[11px] sm:text-xs">
               <span>Extras: <strong>{currentInn.extras.total}</strong> (Wd {currentInn.extras.wides}, Nb {currentInn.extras.noballs}, B {currentInn.extras.byes}, Lb {currentInn.extras.legbyes})</span>
             </div>
-            <div className="flex justify-between font-extrabold text-sm text-white pt-1">
+            <div className="flex justify-between font-extrabold text-xs sm:text-sm text-white pt-1">
               <span>Total:</span>
-              <span>{currentInn.total}/{currentInn.wickets} ({oversStr(currentInn.legalBalls)} overs)</span>
+              <span>{currentInn.total}/{currentInn.wickets} ({oversStr(currentInn.legalBalls)} ov)</span>
             </div>
           </div>
 
@@ -261,7 +261,7 @@ export const ScorecardScreen: React.FC<ScorecardScreenProps> = ({
           {yetToBat.length > 0 && (
             <div className="pt-2 border-t border-emerald-900/60 text-xs">
               <span className="text-emerald-400/80 font-bold uppercase text-[10px] block mb-1">Yet to bat:</span>
-              <p className="text-emerald-200/70 leading-relaxed">
+              <p className="text-emerald-200/70 leading-relaxed text-[11px] sm:text-xs">
                 {yetToBat.map(b => b.name).join(' • ')}
               </p>
             </div>
@@ -271,9 +271,9 @@ export const ScorecardScreen: React.FC<ScorecardScreenProps> = ({
           {fow.length > 0 && (
             <div className="pt-2 border-t border-emerald-900/60 text-xs">
               <span className="text-emerald-400/80 font-bold uppercase text-[10px] block mb-1">Fall of Wickets:</span>
-              <div className="flex flex-wrap gap-2 text-emerald-300/80 text-[11px]">
+              <div className="flex flex-wrap gap-1.5 text-emerald-300/80 text-[10px] sm:text-[11px]">
                 {fow.map(f => (
-                  <span key={f.wicket} className="px-2 py-1 rounded-lg bg-[#143427] border border-emerald-900/60">
+                  <span key={f.wicket} className="px-1.5 py-0.5 rounded-lg bg-[#143427] border border-emerald-900/60">
                     <strong>{f.score}/{f.wicket}</strong> ({f.batsman}, {f.overs} ov)
                   </span>
                 ))}
@@ -282,37 +282,37 @@ export const ScorecardScreen: React.FC<ScorecardScreenProps> = ({
           )}
 
           {/* Bowling Analysis Table */}
-          <div className="pt-3 border-t border-emerald-900/60">
-            <h5 className="font-extrabold text-xs text-emerald-200 uppercase tracking-wider mb-2">
+          <div className="pt-2.5 border-t border-emerald-900/60">
+            <h5 className="font-extrabold text-[11px] sm:text-xs text-emerald-200 uppercase tracking-wider mb-1.5">
               Bowling Analysis
             </h5>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            <div className="overflow-x-auto no-scrollbar -mx-1 sm:mx-0">
+              <table className="w-full text-left text-xs min-w-[320px]">
                 <thead>
-                  <tr className="border-b border-emerald-900/60 text-emerald-300/60 text-[10px] uppercase font-bold">
+                  <tr className="border-b border-emerald-900/60 text-emerald-300/60 text-[9px] sm:text-[10px] uppercase font-bold">
                     <th className="pb-1.5">Bowler</th>
-                    <th className="pb-1.5 text-right">O</th>
-                    <th className="pb-1.5 text-right">M</th>
-                    <th className="pb-1.5 text-right">R</th>
-                    <th className="pb-1.5 text-right">W</th>
-                    <th className="pb-1.5 text-right">Econ</th>
-                    <th className="pb-1.5 text-right">Wd</th>
-                    <th className="pb-1.5 text-right">Nb</th>
+                    <th className="pb-1.5 text-right px-1">O</th>
+                    <th className="pb-1.5 text-right px-1">M</th>
+                    <th className="pb-1.5 text-right px-1">R</th>
+                    <th className="pb-1.5 text-right px-1">W</th>
+                    <th className="pb-1.5 text-right px-1">Econ</th>
+                    <th className="pb-1.5 text-right px-1">Wd</th>
+                    <th className="pb-1.5 text-right pl-1">Nb</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-950/60">
                   {bowlers.map((bw) => (
                     <tr key={bw.name} className="hover:bg-emerald-950/30">
-                      <td className="py-2 font-bold text-emerald-100">{bw.name}</td>
-                      <td className="py-2 text-right">{oversStr(bw.totalBalls)}</td>
-                      <td className="py-2 text-right text-emerald-300/70">{bw.maidens}</td>
-                      <td className="py-2 text-right font-bold text-white">{bw.runs}</td>
-                      <td className="py-2 text-right font-extrabold text-emerald-400">{bw.wickets}</td>
-                      <td className="py-2 text-right text-emerald-300/80 font-mono">
+                      <td className="py-2 font-bold text-emerald-100 text-xs truncate max-w-[100px]">{bw.name}</td>
+                      <td className="py-2 text-right text-xs px-1">{oversStr(bw.totalBalls)}</td>
+                      <td className="py-2 text-right text-emerald-300/70 text-xs px-1">{bw.maidens}</td>
+                      <td className="py-2 text-right font-bold text-white text-xs px-1">{bw.runs}</td>
+                      <td className="py-2 text-right font-extrabold text-emerald-400 text-xs px-1">{bw.wickets}</td>
+                      <td className="py-2 text-right text-emerald-300/80 font-mono text-xs px-1">
                         {economyRate(bw.runs, bw.totalBalls)}
                       </td>
-                      <td className="py-2 text-right text-emerald-300/60">{bw.wides}</td>
-                      <td className="py-2 text-right text-emerald-300/60">{bw.noballs}</td>
+                      <td className="py-2 text-right text-emerald-300/60 text-xs px-1">{bw.wides}</td>
+                      <td className="py-2 text-right text-emerald-300/60 text-xs pl-1">{bw.noballs}</td>
                     </tr>
                   ))}
                 </tbody>

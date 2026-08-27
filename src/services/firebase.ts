@@ -30,8 +30,10 @@ import { Match, MatchHistoryEntry, Tournament, UserRole, UserSession } from '../
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Firestore with custom database ID if provided
-export const db = firebaseConfig.firestoreDatabaseId 
+// Initialize Firestore with default database
+export const db = (firebaseConfig.firestoreDatabaseId && 
+  firebaseConfig.firestoreDatabaseId !== '(default)' && 
+  !firebaseConfig.firestoreDatabaseId.startsWith('ai-studio-')) 
   ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
   : getFirestore(app);
 
@@ -325,13 +327,33 @@ export const saveMatchHistoryToCloud = async (historyEntry: MatchHistoryEntry): 
     const docId = String(historyEntry.id);
     const historyRef = doc(db, 'match_history', docId);
     
+    // Deep clone to strip undefined fields which Firestore rejects
+    const cleanEntry = JSON.parse(JSON.stringify(historyEntry));
+    const timestamp = typeof historyEntry.id === 'number' 
+      ? historyEntry.id 
+      : (historyEntry.date ? new Date(historyEntry.date).getTime() : Date.now());
+
     await setDoc(historyRef, {
-      ...historyEntry,
-      createdAt: typeof historyEntry.id === 'number' ? historyEntry.id : Date.now(),
+      ...cleanEntry,
+      createdAt: timestamp,
       updatedAt: Date.now()
     }, { merge: true });
   } catch (err) {
     console.error('Failed to archive match to cloud:', err);
+  }
+};
+
+/**
+ * Syncs multiple historical matches to cloud if not already synced
+ */
+export const syncLocalHistoryToCloud = async (localHistory: MatchHistoryEntry[]): Promise<void> => {
+  if (!localHistory || localHistory.length === 0) return;
+  try {
+    for (const item of localHistory) {
+      await saveMatchHistoryToCloud(item);
+    }
+  } catch (err) {
+    console.warn('Sync local history batch warning:', err);
   }
 };
 
@@ -342,12 +364,17 @@ export const subscribeToMatchHistory = (
   onUpdate: (history: MatchHistoryEntry[]) => void
 ): Unsubscribe => {
   const historyCol = collection(db, 'match_history');
-  const historyQuery = query(historyCol, orderBy('createdAt', 'desc'), limit(50));
 
-  return onSnapshot(historyQuery, (snapshot) => {
+  return onSnapshot(historyCol, (snapshot) => {
     const records: MatchHistoryEntry[] = [];
     snapshot.forEach((doc) => {
       records.push(doc.data() as MatchHistoryEntry);
+    });
+    // In-memory sort by timestamp descending
+    records.sort((a, b) => {
+      const timeA = (a as any).createdAt || (a.date ? new Date(a.date).getTime() : (typeof a.id === 'number' ? a.id : 0));
+      const timeB = (b as any).createdAt || (b.date ? new Date(b.date).getTime() : (typeof b.id === 'number' ? b.id : 0));
+      return timeB - timeA;
     });
     onUpdate(records);
   }, (error) => {
@@ -376,8 +403,9 @@ export const deleteMatchHistoryFromCloud = async (historyId: string | number): P
 export const saveTournamentToCloud = async (tournament: Tournament): Promise<void> => {
   try {
     const tournRef = doc(db, 'tournaments', tournament.id);
+    const cleanTourn = JSON.parse(JSON.stringify(tournament));
     await setDoc(tournRef, {
-      ...tournament,
+      ...cleanTourn,
       updatedAt: Date.now()
     }, { merge: true });
   } catch (err) {
