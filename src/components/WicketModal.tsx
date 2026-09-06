@@ -11,6 +11,7 @@ interface WicketModalProps {
     bowlerName: string;
     fielder?: string;
     runs?: number;
+    crossed?: boolean;
     onExtra?: boolean;
     extraType?: 'wide' | 'noball';
   }) => void;
@@ -30,6 +31,7 @@ export const WicketModal: React.FC<WicketModalProps> = ({
   const [outPlayer, setOutPlayer] = useState<'striker' | 'nonstriker'>('striker');
   const [fielderName, setFielderName] = useState<string>(bowler?.name || '');
   const [completedRuns, setCompletedRuns] = useState<number>(0);
+  const [battersCrossed, setBattersCrossed] = useState<boolean>(false);
   const [onExtra, setOnExtra] = useState<boolean>(false);
   const [extraType, setExtraType] = useState<'wide' | 'noball'>('wide');
 
@@ -43,6 +45,7 @@ export const WicketModal: React.FC<WicketModalProps> = ({
       bowlerName: bowler?.name || 'Bowler',
       fielder: ['caught', 'stumped', 'run out'].includes(selectedDismissal) ? fielderName : undefined,
       runs: selectedDismissal === 'run out' ? completedRuns : 0,
+      crossed: selectedDismissal === 'run out' ? battersCrossed : false,
       onExtra: selectedDismissal === 'run out' ? onExtra : false,
       extraType: (selectedDismissal === 'run out' && onExtra) ? extraType : undefined
     });
@@ -189,7 +192,10 @@ export const WicketModal: React.FC<WicketModalProps> = ({
                     <button
                       key={r}
                       type="button"
-                      onClick={() => setCompletedRuns(r)}
+                      onClick={() => {
+                        setCompletedRuns(r);
+                        setBattersCrossed(r % 2 === 1);
+                      }}
                       className={`py-1.5 rounded-lg text-xs font-bold border ${
                         completedRuns === r
                           ? 'bg-emerald-500 text-emerald-950 border-emerald-400'
@@ -200,6 +206,45 @@ export const WicketModal: React.FC<WicketModalProps> = ({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Batters Crossed */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-emerald-300/80 uppercase tracking-wider">
+                    Did batters cross on pitch?
+                  </label>
+                  <span className="text-[10px] text-emerald-400/80 font-medium">
+                    {battersCrossed ? 'Crossed' : 'Not crossed'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBattersCrossed(true)}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
+                      battersCrossed
+                        ? 'bg-emerald-500 text-emerald-950 border-emerald-400 shadow-sm'
+                        : 'bg-[#122c23] text-emerald-300 border-emerald-900/60 hover:bg-[#18352b]'
+                    }`}
+                  >
+                    Yes (Crossed)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBattersCrossed(false)}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
+                      !battersCrossed
+                        ? 'bg-emerald-500 text-emerald-950 border-emerald-400 shadow-sm'
+                        : 'bg-[#122c23] text-emerald-300 border-emerald-900/60 hover:bg-[#18352b]'
+                    }`}
+                  >
+                    No (Not Crossed)
+                  </button>
+                </div>
+                <p className="text-[10px] text-emerald-300/60 mt-1">
+                  Determines which batter is on strike for the next ball or over.
+                </p>
               </div>
 
               {/* On Wide / No Ball */}

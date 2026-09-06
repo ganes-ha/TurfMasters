@@ -190,6 +190,15 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
   const currentRunRate = inn.legalBalls > 0 ? ((inn.total / (inn.legalBalls / 6))).toFixed(2) : '0.00';
   const reqRunRate = (target !== null && ballsLeft > 0) ? ((needed! / (ballsLeft / 6))).toFixed(2) : null;
 
+  const isOverCompleteAwaitingBowler = Boolean(
+    inn &&
+    !inn.isComplete &&
+    inn.legalBalls > 0 &&
+    inn.legalBalls % 6 === 0 &&
+    inn.bowlerIdx === inn.lastBowlerIdx &&
+    inn.legalBalls < maxLegalBalls
+  );
+
   return (
     <div className="w-full max-w-md mx-auto py-2.5 sm:py-3 px-2 sm:px-3 space-y-2.5 sm:space-y-3 select-none overflow-hidden">
       {/* Unstarted Innings Alert Banner */}
@@ -277,17 +286,47 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
           <span>This Over Deliveries</span>
           <span className="text-[9px] sm:text-[10px] text-emerald-400/80 lowercase">tap ball to edit</span>
         </div>
-        <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto py-0.5 no-scrollbar min-h-[38px] touch-pan-x">
+        <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-0.5 no-scrollbar min-h-[40px] touch-pan-x">
           {inn.currentOver.length === 0 ? (
-            <span className="text-xs text-emerald-200/40 italic">New over starting...</span>
+            <span className="text-xs text-emerald-200/40 italic py-1">New over starting...</span>
           ) : (
             inn.currentOver.map((b, idx) => {
-              let bgCls = 'bg-[#1e3a5f] text-white border-blue-400/30';
-              if (b.type === 'wicket') bgCls = 'bg-red-600 text-white border-red-400 font-extrabold shadow-sm shadow-red-950/60';
-              else if (b.type === 'wide' || b.type === 'noball') bgCls = 'bg-amber-500 text-amber-950 border-amber-300 font-black';
-              else if (b.label === '4') bgCls = 'bg-blue-600 text-white border-blue-400 font-extrabold';
-              else if (b.label === '6') bgCls = 'bg-purple-600 text-white border-purple-400 font-black shadow-sm shadow-purple-950/60';
-              else if (b.label === '•') bgCls = 'bg-[#21352a] text-emerald-200/60 border-emerald-900/40';
+              const label = b.label || '';
+              const isWicket = b.type === 'wicket' || label.includes('W');
+              const isNoBall = b.type === 'noball' || label.includes('Nb');
+              const isWide = b.type === 'wide' || label.includes('Wd');
+              const isBye = b.type === 'bye' || b.type === 'legbye' || label.startsWith('B') || label.startsWith('Lb');
+              const isBoundary4 = label === '4';
+              const isBoundary6 = label === '6';
+              const isDot = label === '•' || label === '0';
+
+              let bgCls = 'bg-[#1e3a5f] text-white border-blue-400/40';
+              if (isWicket) {
+                if (isNoBall || isWide) {
+                  bgCls = 'bg-gradient-to-r from-red-600 via-red-500 to-amber-600 text-white border-amber-300 font-black shadow-sm shadow-red-950/60';
+                } else {
+                  bgCls = 'bg-red-600 text-white border-red-400 font-black shadow-sm shadow-red-950/60';
+                }
+              } else if (isNoBall || isWide) {
+                bgCls = 'bg-amber-500 text-amber-950 border-amber-300 font-black';
+              } else if (isBoundary6) {
+                bgCls = 'bg-purple-600 text-white border-purple-400 font-black shadow-sm shadow-purple-950/60';
+              } else if (isBoundary4) {
+                bgCls = 'bg-blue-600 text-white border-blue-400 font-extrabold';
+              } else if (isBye) {
+                bgCls = 'bg-teal-700 text-teal-100 border-teal-400 font-bold';
+              } else if (isDot) {
+                bgCls = 'bg-[#21352a] text-emerald-300/70 border-emerald-900/50 font-bold';
+              }
+
+              // Dynamic width based on label length so text NEVER overflows or overlaps adjacent balls
+              const len = label.length;
+              let sizeCls = 'min-w-[30px] sm:min-w-[34px] px-1.5 text-xs sm:text-sm font-black';
+              if (len >= 5) {
+                sizeCls = 'min-w-[48px] sm:min-w-[56px] px-2.5 text-[10px] sm:text-[11px] font-black tracking-tight';
+              } else if (len >= 3) {
+                sizeCls = 'min-w-[38px] sm:min-w-[44px] px-2 text-[11px] sm:text-xs font-black tracking-tight';
+              }
 
               return (
                 <button
@@ -296,10 +335,21 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
                     audioHaptics.tapFeedback();
                     onOpenBallEditor(b, idx);
                   }}
-                  title="Click to edit this ball"
-                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg border flex items-center justify-center text-xs font-bold shrink-0 transition-transform active:scale-90 hover:ring-2 hover:ring-emerald-400 ${bgCls}`}
+                  title={`Ball ${idx + 1}: ${b.label} (Click to edit)`}
+                  className={`h-7 sm:h-8 rounded-lg border inline-flex items-center justify-center shrink-0 whitespace-nowrap overflow-hidden transition-all active:scale-95 hover:ring-2 hover:ring-emerald-400 cursor-pointer ${sizeCls} ${bgCls}`}
                 >
-                  {b.label}
+                  {label.includes('+') ? (
+                    <span className="inline-flex items-center gap-0.5 leading-none">
+                      {label.split('+').map((part, pIdx) => (
+                        <React.Fragment key={pIdx}>
+                          {pIdx > 0 && <span className="opacity-70 text-[8px] font-bold leading-none">+</span>}
+                          <span className="leading-none">{part}</span>
+                        </React.Fragment>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="leading-none">{label}</span>
+                  )}
                 </button>
               );
             })
@@ -402,113 +452,145 @@ export const LiveScoringScreen: React.FC<LiveScoringScreenProps> = ({
 
       {/* Keypad Section (Scorer Only) - Compact High-Efficiency Layout */}
       {isScorer ? (
-        <div className="pt-0.5 space-y-1 sm:space-y-1.5 w-full">
-          {/* Tier 1: Primary Runs (Compact 6-column row) */}
-          <div className="grid grid-cols-6 gap-1 sm:gap-1.5">
-            <button
-              onClick={() => onScoreRuns(0)}
-              className="h-10 sm:h-11 md:h-12 rounded-xl bg-[#143427] hover:bg-[#1a4232] active:scale-95 text-emerald-200 font-extrabold text-base sm:text-lg border border-emerald-800/80 transition-all shadow-sm flex flex-col items-center justify-center leading-none"
-              title="0 Runs (Dot Ball)"
-            >
-              <span>0</span>
-              <span className="text-[8px] text-emerald-400/60 font-semibold mt-0.5">DOT</span>
-            </button>
-
-            <button
-              onClick={() => onScoreRuns(1)}
-              className="h-10 sm:h-11 md:h-12 rounded-xl bg-[#163852] hover:bg-[#1f4a6b] active:scale-95 text-white font-extrabold text-base sm:text-lg border border-blue-500/40 transition-all shadow-sm flex items-center justify-center"
-              title="1 Run (Single)"
-            >
-              1
-            </button>
-
-            <button
-              onClick={() => onScoreRuns(2)}
-              className="h-10 sm:h-11 md:h-12 rounded-xl bg-[#163852] hover:bg-[#1f4a6b] active:scale-95 text-white font-extrabold text-base sm:text-lg border border-blue-500/40 transition-all shadow-sm flex items-center justify-center"
-              title="2 Runs (Double)"
-            >
-              2
-            </button>
-
-            <button
-              onClick={() => onScoreRuns(3)}
-              className="h-10 sm:h-11 md:h-12 rounded-xl bg-[#163852] hover:bg-[#1f4a6b] active:scale-95 text-white font-extrabold text-base sm:text-lg border border-blue-500/40 transition-all shadow-sm flex items-center justify-center"
-              title="3 Runs"
-            >
-              3
-            </button>
-
-            <button
-              onClick={() => onScoreRuns(4)}
-              className="h-10 sm:h-11 md:h-12 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-base sm:text-lg border border-blue-400 transition-all shadow-md shadow-blue-950/60 flex flex-col items-center justify-center leading-none"
-              title="4 Runs (Boundary)"
-            >
-              <span>4</span>
-              <span className="text-[8px] text-blue-200/80 font-bold mt-0.5">FOUR</span>
-            </button>
-
-            <button
-              onClick={() => onScoreRuns(6)}
-              className="h-10 sm:h-11 md:h-12 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-black text-base sm:text-lg border border-purple-400 transition-all shadow-md shadow-purple-950/60 flex flex-col items-center justify-center leading-none"
-              title="6 Runs (Maximum)"
-            >
-              <span>6</span>
-              <span className="text-[8px] text-purple-200/80 font-bold mt-0.5">SIX</span>
-            </button>
+        isOverCompleteAwaitingBowler ? (
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-[#1b3d2b] to-[#0f241a] border-2 border-emerald-400 text-center space-y-2.5 shadow-xl animate-in fade-in zoom-in w-full">
+            <div className="flex items-center justify-center gap-1.5 text-xs font-black uppercase text-emerald-300 tracking-wider">
+              <span>🏏 Over {Math.floor(inn.legalBalls / 6)} Completed</span>
+            </div>
+            <p className="text-xs sm:text-sm text-emerald-100 font-medium">
+              Over {Math.floor(inn.legalBalls / 6)} has finished. Select the bowler for Over {Math.floor(inn.legalBalls / 6) + 1} to proceed with scoring.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  audioHaptics.tapFeedback();
+                  onChangeBowler();
+                }}
+                className="flex-1 py-2.5 sm:py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-emerald-950 font-black text-xs sm:text-sm shadow-lg transition-all flex items-center justify-center gap-2"
+              >
+                <span>Select Bowler for Over {Math.floor(inn.legalBalls / 6) + 1}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onUndo()}
+                className="px-3.5 py-2.5 sm:py-3 rounded-xl bg-[#2b3543] hover:bg-[#374151] active:scale-95 text-gray-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-gray-600/50 shadow-sm"
+                title="Undo Last Ball"
+              >
+                <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                <span>Undo</span>
+              </button>
+            </div>
           </div>
+        ) : (
+          <div className="pt-0.5 space-y-1 sm:space-y-1.5 w-full">
+            {/* Tier 1: Primary Runs (Compact 6-column row) */}
+            <div className="grid grid-cols-6 gap-1 sm:gap-1.5">
+              <button
+                onClick={() => onScoreRuns(0)}
+                className="h-10 sm:h-11 md:h-12 rounded-xl bg-[#143427] hover:bg-[#1a4232] active:scale-95 text-emerald-200 font-extrabold text-base sm:text-lg border border-emerald-800/80 transition-all shadow-sm flex flex-col items-center justify-center leading-none"
+                title="0 Runs (Dot Ball)"
+              >
+                <span>0</span>
+                <span className="text-[8px] text-emerald-400/60 font-semibold mt-0.5">DOT</span>
+              </button>
 
-          {/* Tier 2: Extras, Wicket & Undo (Compact 6-column on tablet+, 3x2 on mobile) */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 sm:gap-1.5">
-            <button
-              onClick={() => onOpenWideModal()}
-              className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#613610] hover:bg-[#784314] active:scale-95 text-amber-200 font-bold text-[10px] sm:text-[11px] border border-amber-600/50 transition-all uppercase flex items-center justify-center shadow-sm"
-              title="Wide Delivery"
-            >
-              Wide +
-            </button>
+              <button
+                onClick={() => onScoreRuns(1)}
+                className="h-10 sm:h-11 md:h-12 rounded-xl bg-[#163852] hover:bg-[#1f4a6b] active:scale-95 text-white font-extrabold text-base sm:text-lg border border-blue-500/40 transition-all shadow-sm flex items-center justify-center"
+                title="1 Run (Single)"
+              >
+                1
+              </button>
 
-            <button
-              onClick={() => onOpenNoBallModal()}
-              className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#613610] hover:bg-[#784314] active:scale-95 text-amber-200 font-bold text-[10px] sm:text-[11px] border border-amber-600/50 transition-all uppercase flex items-center justify-center shadow-sm"
-              title="No Ball Delivery"
-            >
-              NoBall +
-            </button>
+              <button
+                onClick={() => onScoreRuns(2)}
+                className="h-10 sm:h-11 md:h-12 rounded-xl bg-[#163852] hover:bg-[#1f4a6b] active:scale-95 text-white font-extrabold text-base sm:text-lg border border-blue-500/40 transition-all shadow-sm flex items-center justify-center"
+                title="2 Runs (Double)"
+              >
+                2
+              </button>
 
-            <button
-              onClick={() => onOpenWicketModal()}
-              className="h-8 sm:h-9 md:h-10 rounded-xl bg-red-700 hover:bg-red-600 active:scale-95 text-white font-black text-[10px] sm:text-[11px] border border-red-500 transition-all shadow-md shadow-red-950/60 uppercase flex items-center justify-center"
-              title="Wicket Dismissal"
-            >
-              WICKET
-            </button>
+              <button
+                onClick={() => onScoreRuns(3)}
+                className="h-10 sm:h-11 md:h-12 rounded-xl bg-[#163852] hover:bg-[#1f4a6b] active:scale-95 text-white font-extrabold text-base sm:text-lg border border-blue-500/40 transition-all shadow-sm flex items-center justify-center"
+                title="3 Runs"
+              >
+                3
+              </button>
 
-            <button
-              onClick={() => onOpenByeModal('bye')}
-              className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#233147] hover:bg-[#2e405c] active:scale-95 text-slate-200 font-bold text-[10px] sm:text-[11px] border border-slate-600/40 transition-all uppercase flex items-center justify-center shadow-sm"
-              title="Bye Runs"
-            >
-              Bye +
-            </button>
+              <button
+                onClick={() => onScoreRuns(4)}
+                className="h-10 sm:h-11 md:h-12 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-base sm:text-lg border border-blue-400 transition-all shadow-md shadow-blue-950/60 flex flex-col items-center justify-center leading-none"
+                title="4 Runs (Boundary)"
+              >
+                <span>4</span>
+                <span className="text-[8px] text-blue-200/80 font-bold mt-0.5">FOUR</span>
+              </button>
 
-            <button
-              onClick={() => onOpenByeModal('legbye')}
-              className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#233147] hover:bg-[#2e405c] active:scale-95 text-slate-200 font-bold text-[10px] sm:text-[11px] border border-slate-600/40 transition-all uppercase flex items-center justify-center shadow-sm"
-              title="Leg Bye Runs"
-            >
-              LegBye +
-            </button>
+              <button
+                onClick={() => onScoreRuns(6)}
+                className="h-10 sm:h-11 md:h-12 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-black text-base sm:text-lg border border-purple-400 transition-all shadow-md shadow-purple-950/60 flex flex-col items-center justify-center leading-none"
+                title="6 Runs (Maximum)"
+              >
+                <span>6</span>
+                <span className="text-[8px] text-purple-200/80 font-bold mt-0.5">SIX</span>
+              </button>
+            </div>
 
-            <button
-              onClick={() => onUndo()}
-              className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#374151] hover:bg-[#4b5563] active:scale-95 text-gray-200 font-bold text-[10px] sm:text-[11px] border border-gray-600/40 flex items-center justify-center gap-1 transition-all shadow-sm"
-              title="Undo Last Ball"
-            >
-              <RotateCcw className="w-3 h-3 shrink-0" />
-              <span>Undo</span>
-            </button>
+            {/* Tier 2: Extras, Wicket & Undo (Compact 6-column on tablet+, 3x2 on mobile) */}
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 sm:gap-1.5">
+              <button
+                onClick={() => onOpenWideModal()}
+                className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#613610] hover:bg-[#784314] active:scale-95 text-amber-200 font-bold text-[10px] sm:text-[11px] border border-amber-600/50 transition-all uppercase flex items-center justify-center shadow-sm"
+                title="Wide Delivery"
+              >
+                Wide +
+              </button>
+
+              <button
+                onClick={() => onOpenNoBallModal()}
+                className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#613610] hover:bg-[#784314] active:scale-95 text-amber-200 font-bold text-[10px] sm:text-[11px] border border-amber-600/50 transition-all uppercase flex items-center justify-center shadow-sm"
+                title="No Ball Delivery"
+              >
+                NoBall +
+              </button>
+
+              <button
+                onClick={() => onOpenWicketModal()}
+                className="h-8 sm:h-9 md:h-10 rounded-xl bg-red-700 hover:bg-red-600 active:scale-95 text-white font-black text-[10px] sm:text-[11px] border border-red-500 transition-all shadow-md shadow-red-950/60 uppercase flex items-center justify-center"
+                title="Wicket Dismissal"
+              >
+                WICKET
+              </button>
+
+              <button
+                onClick={() => onOpenByeModal('bye')}
+                className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#233147] hover:bg-[#2e405c] active:scale-95 text-slate-200 font-bold text-[10px] sm:text-[11px] border border-slate-600/40 transition-all uppercase flex items-center justify-center shadow-sm"
+                title="Bye Runs"
+              >
+                Bye +
+              </button>
+
+              <button
+                onClick={() => onOpenByeModal('legbye')}
+                className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#233147] hover:bg-[#2e405c] active:scale-95 text-slate-200 font-bold text-[10px] sm:text-[11px] border border-slate-600/40 transition-all uppercase flex items-center justify-center shadow-sm"
+                title="Leg Bye Runs"
+              >
+                LegBye +
+              </button>
+
+              <button
+                onClick={() => onUndo()}
+                className="h-8 sm:h-9 md:h-10 rounded-xl bg-[#374151] hover:bg-[#4b5563] active:scale-95 text-gray-200 font-bold text-[10px] sm:text-[11px] border border-gray-600/40 flex items-center justify-center gap-1 transition-all shadow-sm"
+                title="Undo Last Ball"
+              >
+                <RotateCcw className="w-3 h-3 shrink-0" />
+                <span>Undo</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )
       ) : (
         <div className="p-3.5 rounded-2xl bg-[#0e271e] border border-dashed border-emerald-800 text-center text-xs text-emerald-300/70 w-full">
           👁 <strong>View Only Mode</strong> — Login as a Scorer to record live deliveries.

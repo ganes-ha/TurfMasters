@@ -15,7 +15,7 @@ import {
   AppTheme 
 } from './types';
 import { DEFAULT_PLAYERS } from './data/defaultSquad';
-import { calculateAwards, oversStr } from './utils/cricketRules';
+import { calculateAwards, oversStr, recalculateInningsStats } from './utils/cricketRules';
 import { audioHaptics } from './utils/audioHaptics';
 import { voiceScoring } from './utils/voiceRecognition';
 import { resolvePlayoffMatchups, calculatePointsTable } from './utils/tournamentEngine';
@@ -111,6 +111,11 @@ export default function App() {
   // Advanced Options Modals
   const [extrasModalType, setExtrasModalType] = useState<'wide' | 'noball' | 'bye' | 'legbye' | null>(null);
   const [batsmanModalRole, setBatsmanModalRole] = useState<'striker' | 'nonstriker' | 'new_batter' | null>(null);
+  const [pendingWicketNextBatter, setPendingWicketNextBatter] = useState<{
+    survivorIdx: number;
+    newBatterTargetRole: 'striker' | 'nonstriker';
+    isOverEnd: boolean;
+  } | null>(null);
   const [isRetireModalOpen, setIsRetireModalOpen] = useState<boolean>(false);
   const [isReturnRetiredModalOpen, setIsReturnRetiredModalOpen] = useState<boolean>(false);
   const [isAddPlayerMidMatchModalOpen, setIsAddPlayerMidMatchModalOpen] = useState<boolean>(false);
@@ -395,6 +400,12 @@ export default function App() {
     const inn = getCurrentInnings();
     if (!inn || inn.isComplete) return;
 
+    // Strict over-boundary guard: If over complete and awaiting next bowler, lock scoring and prompt bowler selection
+    if (inn.legalBalls > 0 && inn.legalBalls % 6 === 0 && inn.bowlerIdx === inn.lastBowlerIdx) {
+      setIsChangeBowlerModalOpen(true);
+      return;
+    }
+
     // If innings has not formally selected striker/non-striker/bowler, auto-assign or open modal
     if (inn.strikerIdx < 0 || inn.nonStrikerIdx < 0 || inn.bowlerIdx < 0) {
       if (inn.batting.length >= 2 && inn.bowling.length >= 1) {
@@ -437,10 +448,10 @@ export default function App() {
 
     bowler.runs += runs;
     bowler.totalBalls += 1;
-    bowler.ballsThisOver = bowler.totalBalls % 6 || (bowler.totalBalls > 0 ? 6 : 0);
 
     inn.total += runs;
     inn.legalBalls += 1;
+    bowler.ballsThisOver = (inn.legalBalls % 6 === 0 && inn.legalBalls > 0) ? 6 : (inn.legalBalls % 6);
     inn.freeHit = false;
 
     const nonStriker = inn.batting[inn.nonStrikerIdx] || inn.batting[1] || striker;
@@ -473,6 +484,11 @@ export default function App() {
     if (!match || match.status !== 'live') return;
     const inn = getCurrentInnings();
     if (!inn || inn.isComplete) return;
+
+    if (inn.legalBalls > 0 && inn.legalBalls % 6 === 0 && inn.bowlerIdx === inn.lastBowlerIdx) {
+      setIsChangeBowlerModalOpen(true);
+      return;
+    }
 
     audioHaptics.tapFeedback();
     const bowler = inn.bowling[inn.bowlerIdx];
@@ -513,6 +529,11 @@ export default function App() {
     if (!match || match.status !== 'live') return;
     const inn = getCurrentInnings();
     if (!inn || inn.isComplete) return;
+
+    if (inn.legalBalls > 0 && inn.legalBalls % 6 === 0 && inn.bowlerIdx === inn.lastBowlerIdx) {
+      setIsChangeBowlerModalOpen(true);
+      return;
+    }
 
     audioHaptics.tapFeedback();
     const striker = inn.batting[inn.strikerIdx];
@@ -570,6 +591,11 @@ export default function App() {
     const inn = getCurrentInnings();
     if (!inn || inn.isComplete) return;
 
+    if (inn.legalBalls > 0 && inn.legalBalls % 6 === 0 && inn.bowlerIdx === inn.lastBowlerIdx) {
+      setIsChangeBowlerModalOpen(true);
+      return;
+    }
+
     audioHaptics.tapFeedback();
     const striker = inn.batting[inn.strikerIdx];
     const bowler = inn.bowling[inn.bowlerIdx];
@@ -582,7 +608,7 @@ export default function App() {
     inn.legalBalls += 1;
     striker.balls += 1;
     bowler.totalBalls += 1;
-    bowler.ballsThisOver = bowler.totalBalls % 6 || 6;
+    bowler.ballsThisOver = (inn.legalBalls % 6 === 0 && inn.legalBalls > 0) ? 6 : (inn.legalBalls % 6);
     inn.freeHit = false;
 
     const delivery: BallDelivery = {
@@ -615,6 +641,7 @@ export default function App() {
     bowlerName: string;
     fielder?: string;
     runs?: number;
+    crossed?: boolean;
     onExtra?: boolean;
     extraType?: 'wide' | 'noball';
   }) => {
@@ -622,15 +649,27 @@ export default function App() {
     const inn = getCurrentInnings();
     if (!inn || inn.isComplete) return;
 
+    if (inn.legalBalls > 0 && inn.legalBalls % 6 === 0 && inn.bowlerIdx === inn.lastBowlerIdx) {
+      setIsChangeBowlerModalOpen(true);
+      return;
+    }
+
     audioHaptics.wicketFeedback();
 
-    const striker = inn.batting[inn.strikerIdx];
-    const nonStriker = inn.batting[inn.nonStrikerIdx];
+    const origStrikerIdx = inn.strikerIdx;
+    const origNonStrikerIdx = inn.nonStrikerIdx;
+    const striker = inn.batting[origStrikerIdx];
+    const nonStriker = inn.batting[origNonStrikerIdx];
     const bowler = inn.bowling[inn.bowlerIdx];
-    const victim = data.outPlayer === 'striker' ? striker : nonStriker;
+
+    const isStrikerOut = data.outPlayer === 'striker';
+    const victim = isStrikerOut ? striker : nonStriker;
+    const survivor = isStrikerOut ? nonStriker : striker;
+    const survivorIdx = isStrikerOut ? origNonStrikerIdx : origStrikerIdx;
 
     const completedRuns = data.runs || 0;
     const isRunOut = data.howOut === 'run out';
+    const isLegal = !data.onExtra;
 
     // 1. Handle runs and extras
     if (isRunOut && data.onExtra) {
@@ -654,30 +693,18 @@ export default function App() {
         striker.balls += 1;
         inn.freeHit = match.freeHitOn;
       }
-
-      // Strike rotation for completed runs on wide / no-ball
-      if (completedRuns % 2 === 1) {
-        const temp = inn.strikerIdx;
-        inn.strikerIdx = inn.nonStrikerIdx;
-        inn.nonStrikerIdx = temp;
-      }
     } else {
-      // Normal delivery or non-extra run-out
+      // Normal delivery or run-out on legal ball
       if (isRunOut && completedRuns > 0) {
         striker.runs += completedRuns;
         bowler.runs += completedRuns;
         inn.total += completedRuns;
-        if (completedRuns % 2 === 1) {
-          const temp = inn.strikerIdx;
-          inn.strikerIdx = inn.nonStrikerIdx;
-          inn.nonStrikerIdx = temp;
-        }
       }
 
       striker.balls += 1;
       bowler.totalBalls += 1;
-      bowler.ballsThisOver = bowler.totalBalls % 6 || 6;
       inn.legalBalls += 1;
+      bowler.ballsThisOver = (inn.legalBalls % 6 === 0 && inn.legalBalls > 0) ? 6 : (inn.legalBalls % 6);
       inn.freeHit = false;
     }
 
@@ -694,8 +721,6 @@ export default function App() {
     if (bowlerCredits) {
       bowler.wickets += 1;
     }
-
-    const isLegal = !data.onExtra;
 
     inn.wickets += 1;
     inn.fallOfWickets.push({
@@ -716,6 +741,8 @@ export default function App() {
       }
     }
 
+    const crossed = typeof data.crossed === 'boolean' ? data.crossed : (completedRuns % 2 === 1);
+
     const delivery: BallDelivery = {
       id: `ball_${Date.now()}`,
       label: ballLabel,
@@ -727,38 +754,139 @@ export default function App() {
       bowlerName: bowler.name,
       howOut: victim.howOut,
       fielder: data.fielder,
+      outPlayer: data.outPlayer,
+      crossed: isRunOut ? crossed : undefined,
       timestamp: Date.now()
     };
 
     inn.currentOver.push(delivery);
     inn.allDeliveries.push(delivery);
 
-    // Identify active survivor
-    const survivor = data.outPlayer === 'striker' ? nonStriker : striker;
+    // 3. Check match and innings completion conditions
+    // Check chase in 2nd innings
+    if (match.innings === 2 && match.inn1 && inn.total >= match.inn1.total + 1) {
+      endInnings(inn, 'target');
+      return;
+    }
 
     // Count active un-dismissed batters remaining in the squad
     const remainingBatters = inn.batting.filter(b => !b.out && !b.retired);
     const maxWickets = Math.max(1, inn.batting.length - 1);
-
-    // Eligible available replacement batters
     const availableNext = inn.batting
       .filter(b => !b.out && !b.retired && b.name !== survivor.name);
 
-    // All out condition: less than 2 batters remaining, or reached max wickets, or no available incoming partner
+    // All out condition
     if (remainingBatters.length < 2 || inn.wickets >= maxWickets || availableNext.length === 0) {
       endInnings(inn, 'allout');
       return;
     }
 
+    // Check overs complete (innings total overs reached)
+    if (inn.legalBalls >= match.overs * 6) {
+      endInnings(inn, 'overs');
+      return;
+    }
+
+    // 4. Over Boundary & Strike Rotation Logic
+    const isOverComplete = isLegal && inn.legalBalls > 0 && inn.legalBalls % 6 === 0;
+    let newBatterTargetRole: 'striker' | 'nonstriker';
+
+    if (isRunOut) {
+      if (data.outPlayer === 'striker') {
+        if (!crossed) {
+          // Striker out, did not cross: Survivor remained at Non-Striker's End.
+          // Mid-over: incoming takes Striker's End -> 'striker'.
+          // Over complete: ends switch -> survivor at Non-Striker's End now faces the new over -> 'nonstriker' (survivor is striker).
+          newBatterTargetRole = isOverComplete ? 'nonstriker' : 'striker';
+        } else {
+          // Striker out, crossed: Survivor reached Striker's End.
+          // Mid-over: survivor takes Striker's End -> 'nonstriker' (survivor is striker).
+          // Over complete: ends switch -> incoming at Non-Striker's End now faces the new over -> 'striker' (incoming is striker).
+          newBatterTargetRole = isOverComplete ? 'striker' : 'nonstriker';
+        }
+      } else {
+        // outPlayer === 'nonstriker'
+        if (!crossed) {
+          // Non-striker out, did not cross: Survivor (striker) stayed at Striker's End.
+          // Mid-over: survivor stays at Striker's End -> 'nonstriker' (survivor is striker).
+          // Over complete: ends switch -> incoming at Non-Striker's End now faces the new over -> 'striker' (incoming is striker).
+          newBatterTargetRole = isOverComplete ? 'striker' : 'nonstriker';
+        } else {
+          // Non-striker out, crossed: Survivor (striker) reached Non-Striker's End.
+          // Mid-over: incoming takes Striker's End -> 'striker' (incoming is striker).
+          // Over complete: ends switch -> survivor at Non-Striker's End now faces the new over -> 'nonstriker' (survivor is striker).
+          newBatterTargetRole = isOverComplete ? 'nonstriker' : 'striker';
+        }
+      }
+    } else {
+      // Standard dismissal (bowled, caught, lbw, stumped, hit wicket)
+      // Striker was dismissed. Survivor is at Non-Striker's End.
+      // Mid-over: incoming takes Striker's End -> 'striker'.
+      // Over complete: ends switch -> survivor at Non-Striker's End faces the new over -> 'nonstriker' (survivor is striker).
+      newBatterTargetRole = isOverComplete ? 'nonstriker' : 'striker';
+    }
+
+    if (isOverComplete) {
+      audioHaptics.overCompleteFeedback();
+      if (inn.total === (inn.overStartTotal ?? 0)) {
+        bowler.maidens += 1;
+      }
+      bowler.ballsThisOver = 0;
+      inn.lastBowlerIdx = inn.bowlerIdx;
+    }
+
+    setPendingWicketNextBatter({
+      survivorIdx,
+      newBatterTargetRole,
+      isOverEnd: isOverComplete
+    });
+
     // Prompt batsman selection modal for the next batter
     setBatsmanModalRole('new_batter');
-
-    checkOverAndMatchStatus(inn);
+    setMatch({ ...match });
   };
 
   const handleSelectBatter = (batterIdx: number) => {
     const inn = getCurrentInnings();
-    if (!inn) return;
+    if (!inn || !match) return;
+
+    if (batsmanModalRole === 'new_batter') {
+      if (inn.batting[batterIdx].order === -1) {
+        inn.batting[batterIdx].order = inn.battingOrder++;
+      }
+
+      let shouldOpenChangeBowler = false;
+
+      if (pendingWicketNextBatter) {
+        const { survivorIdx, newBatterTargetRole, isOverEnd } = pendingWicketNextBatter;
+        if (newBatterTargetRole === 'striker') {
+          inn.strikerIdx = batterIdx;
+          inn.nonStrikerIdx = survivorIdx;
+        } else {
+          inn.strikerIdx = survivorIdx;
+          inn.nonStrikerIdx = batterIdx;
+        }
+        shouldOpenChangeBowler = isOverEnd;
+      } else {
+        const strikerIsOut = inn.batting[inn.strikerIdx]?.out;
+        if (strikerIsOut) {
+          inn.strikerIdx = batterIdx;
+        } else {
+          inn.nonStrikerIdx = batterIdx;
+        }
+      }
+
+      setPendingWicketNextBatter(null);
+      setBatsmanModalRole(null);
+      setMatch({ ...match });
+
+      if (shouldOpenChangeBowler) {
+        setTimeout(() => {
+          setIsChangeBowlerModalOpen(true);
+        }, 350);
+      }
+      return;
+    }
 
     if (batsmanModalRole === 'striker') {
       inn.strikerIdx = batterIdx;
@@ -770,19 +898,10 @@ export default function App() {
       if (inn.batting[batterIdx].order === -1) {
         inn.batting[batterIdx].order = inn.battingOrder++;
       }
-    } else if (batsmanModalRole === 'new_batter') {
-      if (inn.batting[batterIdx].order === -1) {
-        inn.batting[batterIdx].order = inn.battingOrder++;
-      }
-      const strikerIsOut = inn.batting[inn.strikerIdx]?.out;
-      if (strikerIsOut) {
-        inn.strikerIdx = batterIdx;
-      } else {
-        inn.nonStrikerIdx = batterIdx;
-      }
     }
-    setMatch({ ...match });
+
     setBatsmanModalRole(null);
+    setMatch({ ...match });
   };
 
   const handleConfirmReturnRetired = (playerIdx: number, replaceTarget: 'striker' | 'nonstriker') => {
@@ -889,13 +1008,14 @@ export default function App() {
 
     // Check end of over
     const bowler = inn.bowling[inn.bowlerIdx];
-    if (bowler && bowler.totalBalls > 0 && bowler.totalBalls % 6 === 0 && inn.currentOver.length > 0) {
+    if (inn.legalBalls > 0 && inn.legalBalls % 6 === 0 && inn.currentOver.length > 0) {
       audioHaptics.overCompleteFeedback();
-      if (inn.total === (inn.overStartTotal ?? 0)) {
-        bowler.maidens += 1;
+      if (bowler) {
+        if (inn.total === (inn.overStartTotal ?? 0)) {
+          bowler.maidens += 1;
+        }
+        bowler.ballsThisOver = 0;
       }
-      bowler.ballsThisOver = 0;
-      inn.currentOver = [];
       inn.lastBowlerIdx = inn.bowlerIdx;
 
       // Swap strike at end of over
@@ -903,8 +1023,11 @@ export default function App() {
       inn.strikerIdx = inn.nonStrikerIdx;
       inn.nonStrikerIdx = temp;
 
+      // Reset current over for next over
+      inn.currentOver = [];
+
       setMatch({ ...match });
-      setTimeout(() => setIsChangeBowlerModalOpen(true), 300);
+      setIsChangeBowlerModalOpen(true);
       return;
     }
 
@@ -1124,8 +1247,37 @@ export default function App() {
       inn.wickets = Math.max(0, inn.wickets - 1);
       if (lastBall.isLegal) inn.legalBalls = Math.max(0, inn.legalBalls - 1);
       inn.fallOfWickets.pop();
+
+      const bw = inn.bowling.find(x => x.name === lastBall.bowlerName);
+      if (bw && lastBall.isLegal) {
+        bw.totalBalls = Math.max(0, bw.totalBalls - 1);
+        bw.ballsThisOver = (inn.legalBalls % 6 === 0 && inn.legalBalls > 0) ? 6 : (inn.legalBalls % 6);
+      }
+      const st = inn.batting.find(x => x.name === lastBall.strikerName);
+      if (st && lastBall.isLegal) {
+        st.balls = Math.max(0, st.balls - 1);
+      }
+
+      const bowlerCredited = ['bowled', 'caught', 'stumped', 'lbw', 'hit wicket'].some(k => (lastBall.howOut || '').toLowerCase().includes(k));
+      if (bowlerCredited && bw) {
+        bw.wickets = Math.max(0, bw.wickets - 1);
+      }
+
+      if (lastBall.runs > 0) {
+        inn.total = Math.max(0, inn.total - lastBall.runs);
+        if (st) st.runs = Math.max(0, st.runs - lastBall.runs);
+        if (bw) bw.runs = Math.max(0, bw.runs - lastBall.runs);
+      }
+
+      const victim = inn.batting.find(x => x.name === (lastBall.outPlayer === 'nonstriker' ? lastBall.nonStrikerName : lastBall.strikerName)) || st;
+      if (victim) {
+        victim.out = false;
+        victim.howOut = undefined;
+        victim.dismissal = undefined;
+      }
     }
 
+    recalculateInningsStats(inn);
     setMatch({ ...match });
   };
 
@@ -1505,6 +1657,7 @@ export default function App() {
       {isChangeBowlerModalOpen && getCurrentInnings() && match && (
         <ChangeBowlerModal
           innings={getCurrentInnings()!}
+          match={match}
           maxBowl={match.maxBowl}
           commonPlayer={match.commonPlayer}
           onClose={() => setIsChangeBowlerModalOpen(false)}
@@ -1513,6 +1666,11 @@ export default function App() {
             if (inn) {
               inn.bowlerIdx = bowlerIdx;
               inn.overStartTotal = inn.total;
+              if (inn.legalBalls % 6 === 0) {
+                inn.currentOver = [];
+              }
+              const bw = inn.bowling[bowlerIdx];
+              if (bw) bw.ballsThisOver = 0;
               setMatch({ ...match });
             }
             setIsChangeBowlerModalOpen(false);
@@ -1537,9 +1695,13 @@ export default function App() {
       {batsmanModalRole && getCurrentInnings() && (
         <SelectBatsmanModal
           innings={getCurrentInnings()!}
+          match={match}
           targetRole={batsmanModalRole}
           commonPlayer={match?.commonPlayer || null}
-          onClose={() => setBatsmanModalRole(null)}
+          onClose={() => {
+            setBatsmanModalRole(null);
+            setPendingWicketNextBatter(null);
+          }}
           onSelectBatter={handleSelectBatter}
         />
       )}

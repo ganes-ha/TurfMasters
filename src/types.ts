@@ -65,6 +65,7 @@ export interface BallDelivery {
   howOut?: string;
   outPlayer?: 'striker' | 'nonstriker';
   fielder?: string;
+  crossed?: boolean;
 }
 
 export interface Innings {

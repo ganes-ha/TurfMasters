@@ -421,7 +421,7 @@ export function rebuildInningsFromDeliveries(inn: Innings): void {
       if (bowler) {
         bowler.runs += d.runs;
         bowler.totalBalls += 1;
-        bowler.ballsThisOver = bowler.totalBalls % 6 || (bowler.totalBalls > 0 ? 6 : 0);
+        bowler.ballsThisOver = overBalls + 1;
       }
       inn.total += d.runs;
       inn.legalBalls += 1;
@@ -469,7 +469,7 @@ export function rebuildInningsFromDeliveries(inn: Innings): void {
       if (striker) striker.balls += 1;
       if (bowler) {
         bowler.totalBalls += 1;
-        bowler.ballsThisOver = bowler.totalBalls % 6 || (bowler.totalBalls > 0 ? 6 : 0);
+        bowler.ballsThisOver = overBalls + 1;
       }
       overRuns += runs;
       overBalls += 1;
@@ -496,7 +496,7 @@ export function rebuildInningsFromDeliveries(inn: Innings): void {
         if (striker) striker.balls += 1;
         if (bowler) {
           bowler.totalBalls += 1;
-          bowler.ballsThisOver = bowler.totalBalls % 6 || (bowler.totalBalls > 0 ? 6 : 0);
+          bowler.ballsThisOver = overBalls + 1;
         }
         inn.legalBalls += 1;
         overBalls += 1;
@@ -531,4 +531,6 @@ export function rebuildInningsFromDeliveries(inn: Innings): void {
 
   inn.currentOver = currentOverDeliveries;
 }
+
+export const recalculateInningsStats = rebuildInningsFromDeliveries;
 
