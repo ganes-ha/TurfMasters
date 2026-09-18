@@ -3,16 +3,13 @@ import {
   History as HistoryIcon, 
   Eye, 
   EyeOff, 
-  Trash2, 
   Trophy,
   CloudDownload,
   CloudUpload,
   RefreshCw,
   CheckCircle2,
-  AlertCircle,
   Smartphone,
-  Info,
-  X
+  Info
 } from 'lucide-react';
 import { MatchHistoryEntry, Match } from '../types';
 import { audioHaptics } from '../utils/audioHaptics';
@@ -20,7 +17,6 @@ import { audioHaptics } from '../utils/audioHaptics';
 interface HistoryScreenProps {
   history: MatchHistoryEntry[];
   onSelectMatch: (match: Match) => void;
-  onClearHistory: (deleteFromCloudToo?: boolean) => void;
   isScorer: boolean;
   onRetrieveFromCloud: () => Promise<void>;
   onSyncLocalToCloud?: () => Promise<void>;
@@ -31,7 +27,6 @@ interface HistoryScreenProps {
 export const HistoryScreen: React.FC<HistoryScreenProps> = ({
   history,
   onSelectMatch,
-  onClearHistory,
   isScorer,
   onRetrieveFromCloud,
   onSyncLocalToCloud,
@@ -40,20 +35,19 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
 }) => {
   const [hiddenIds, setHiddenIds] = useState<Set<string | number>>(new Set());
   const [showHidden, setShowHidden] = useState<boolean>(false);
-  const [showClearModal, setShowClearModal] = useState<boolean>(false);
   const [isLocalFetching, setIsLocalFetching] = useState<boolean>(false);
   const autoFetchTriggered = useRef<boolean>(false);
 
-  // Auto-fetch from Cloud once on mount if local history is completely empty
+  // Automatically fetch from database on mount regardless of login status
   useEffect(() => {
-    if (history.length === 0 && !autoFetchTriggered.current) {
+    if (!autoFetchTriggered.current) {
       autoFetchTriggered.current = true;
       setIsLocalFetching(true);
       onRetrieveFromCloud().finally(() => {
         setIsLocalFetching(false);
       });
     }
-  }, [history.length, onRetrieveFromCloud]);
+  }, [onRetrieveFromCloud]);
 
   const toggleHide = (id: string | number) => {
     audioHaptics.tapFeedback();
@@ -86,7 +80,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
 
   const isWorking = isCloudSyncing || isLocalFetching;
 
-  // Render Empty State with Cloud Retrieval Action
+  // Render Empty State if no matches found in database
   if (history.length === 0) {
     return (
       <div className="max-w-md mx-auto py-8 px-4 space-y-4">
@@ -104,10 +98,10 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
 
           <div className="space-y-1.5">
             <h3 className="font-extrabold text-lg text-emerald-100 font-display">
-              {isWorking ? 'Retrieving Cloud Archives...' : 'No Match History in Local Storage'}
+              {isWorking ? 'Querying Cloud Database...' : 'No Match Archives Found'}
             </h3>
             <p className="text-xs text-emerald-300/80 leading-relaxed max-w-xs mx-auto">
-              If match records were cleared locally or you opened CricVault on another device, retrieve all completed matches stored safely in Firebase Cloud Firestore.
+              Match history is stored permanently in Firebase Cloud Firestore. Anyone can view all completed matches on any device without logging in.
             </p>
           </div>
 
@@ -119,15 +113,15 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
               className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-black text-sm shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 disabled:opacity-50 transition-all cursor-pointer"
             >
               <RefreshCw className={`w-4 h-4 ${isWorking ? 'animate-spin' : ''}`} />
-              <span>{isWorking ? 'Syncing with Cloud Firestore...' : 'Retrieve Matches from Cloud'}</span>
+              <span>{isWorking ? 'Connecting to Cloud Firestore...' : 'Retrieve All Matches from Database'}</span>
             </button>
           </div>
 
           <div className="p-3 rounded-2xl bg-[#0a1e16] border border-emerald-900/50 text-left flex items-start gap-2.5 text-[11px] text-emerald-300/70">
             <Info className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
-              <span className="font-bold text-emerald-300">Cross-Device Sync Tip:</span>
-              <p>Completed matches automatically back up to Cloud Firestore so spectators and scorers on any mobile, tablet, or desktop can view the same records.</p>
+              <span className="font-bold text-emerald-300">Public & Permanent:</span>
+              <p>All completed matches with full scorecards and awards remain permanently archived in the cloud database for spectators and players across all devices.</p>
             </div>
           </div>
         </div>
@@ -165,18 +159,18 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
           </div>
         </div>
 
-        {/* Action Controls */}
+        {/* Action Controls - Publicly accessible to retrieve/refresh */}
         <div className="flex items-center gap-1.5">
-          {/* Retrieve from Cloud Button */}
+          {/* Retrieve / Refresh from Cloud Button (Available to all users regardless of login) */}
           <button
             type="button"
             onClick={handleManualRetrieve}
             disabled={isWorking}
-            className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 text-xs font-bold transition-all disabled:opacity-50"
-            title="Retrieve newest matches from Cloud Firestore"
+            className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+            title="Retrieve all match history from Cloud Firestore"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isWorking ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Retrieve</span>
+            <span>{isWorking ? 'Syncing...' : 'Refresh'}</span>
           </button>
 
           {/* Sync Local Records to Cloud (if Scorer) */}
@@ -185,27 +179,11 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
               type="button"
               onClick={handleManualSyncLocal}
               disabled={isWorking}
-              className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 active:scale-95 text-teal-300 border border-teal-500/30 flex items-center gap-1 text-xs font-bold transition-all disabled:opacity-50"
+              className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 active:scale-95 text-teal-300 border border-teal-500/30 flex items-center gap-1 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
               title="Ensure all local matches are backed up to Cloud Firestore"
             >
               <CloudUpload className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Backup</span>
-            </button>
-          )}
-
-          {/* Clear Button */}
-          {isScorer && (
-            <button
-              type="button"
-              onClick={() => {
-                audioHaptics.tapFeedback();
-                setShowClearModal(true);
-              }}
-              className="p-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 active:scale-95 text-red-400 border border-red-500/30 flex items-center gap-1 text-xs font-bold transition-all"
-              title="Clear or Manage History"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Clear</span>
             </button>
           )}
         </div>
@@ -215,14 +193,15 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
       <div className="px-3 py-2 rounded-2xl bg-[#091b13] border border-emerald-900/40 flex items-center justify-between text-[11px] text-emerald-300/80">
         <div className="flex items-center gap-1.5">
           <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Sync status: <strong>Multi-Device Ready</strong></span>
+          <span>Sync status: <strong>Permanent Cloud Records</strong></span>
         </div>
         <button
           type="button"
           onClick={handleManualRetrieve}
-          className="text-emerald-400 hover:text-emerald-300 font-bold underline cursor-pointer"
+          disabled={isWorking}
+          className="text-emerald-400 hover:text-emerald-300 font-bold underline cursor-pointer disabled:opacity-50"
         >
-          Check Cloud for updates
+          {isWorking ? 'Fetching updates...' : 'Check Cloud for updates'}
         </button>
       </div>
 
@@ -231,7 +210,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
         <button
           type="button"
           onClick={() => setShowHidden(!showHidden)}
-          className="text-xs font-bold text-emerald-400/80 hover:text-emerald-300 flex items-center gap-1 px-2"
+          className="text-xs font-bold text-emerald-400/80 hover:text-emerald-300 flex items-center gap-1 px-2 cursor-pointer"
         >
           {showHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           <span>{showHidden ? 'Hide hidden matches' : `Show hidden matches (${hiddenIds.size})`}</span>
@@ -290,7 +269,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
                       e.stopPropagation();
                       toggleHide(h.id);
                     }}
-                    className="p-1 rounded text-emerald-400/60 hover:text-emerald-300"
+                    className="p-1 rounded text-emerald-400/60 hover:text-emerald-300 cursor-pointer"
                     title={isHidden ? 'Unhide' : 'Hide'}
                   >
                     {isHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -301,82 +280,6 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
           );
         })}
       </div>
-
-      {/* Clear History Modal */}
-      {showClearModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-sm rounded-3xl bg-[#0f281e] border-2 border-emerald-800/80 p-5 space-y-4 shadow-2xl text-left">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-emerald-100 font-black text-base">
-                <AlertCircle className="w-5 h-5 text-amber-400" />
-                <span>Manage Match History</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowClearModal(false)}
-                className="p-1 rounded-xl hover:bg-emerald-800/50 text-emerald-400"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-emerald-200/80">
-              How would you like to clear match history?
-            </p>
-
-            <div className="space-y-2.5">
-              {/* Option 1: Clear Local Only */}
-              <button
-                type="button"
-                onClick={() => {
-                  audioHaptics.tapFeedback();
-                  setShowClearModal(false);
-                  onClearHistory(false);
-                }}
-                className="w-full p-3.5 rounded-2xl bg-[#143929] hover:bg-[#1a4a35] border border-emerald-700/50 text-left transition-all space-y-1"
-              >
-                <div className="font-bold text-xs text-emerald-100 flex items-center justify-between">
-                  <span>Clear Local Device Cache Only</span>
-                  <span className="text-[10px] text-emerald-400 font-normal">Recommended</span>
-                </div>
-                <p className="text-[11px] text-emerald-300/70">
-                  Clears local storage on this browser. All matches remain preserved in Cloud Firestore and can be retrieved back at any time.
-                </p>
-              </button>
-
-              {/* Option 2: Delete from Cloud Too */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (confirm('Are you sure you want to permanently delete ALL match history from Cloud Firestore? This cannot be undone.')) {
-                    audioHaptics.tapFeedback();
-                    setShowClearModal(false);
-                    onClearHistory(true);
-                  }
-                }}
-                className="w-full p-3.5 rounded-2xl bg-red-950/40 hover:bg-red-950/70 border border-red-800/50 text-left transition-all space-y-1"
-              >
-                <div className="font-bold text-xs text-red-300">
-                  Permanently Delete from Cloud & Device
-                </div>
-                <p className="text-[11px] text-red-200/60">
-                  Wipes history documents from Cloud Firestore and all connected devices permanently.
-                </p>
-              </button>
-            </div>
-
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={() => setShowClearModal(false)}
-                className="w-full py-2.5 rounded-xl bg-gray-800/80 hover:bg-gray-700 text-gray-300 text-xs font-bold"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

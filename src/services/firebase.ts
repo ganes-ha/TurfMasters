@@ -486,7 +486,7 @@ export const fetchMatchHistoryFromCloud = async (): Promise<MatchHistoryEntry[]>
     }
   }
 
-  // 3. Fallback check: If still empty, check matches collection for any completed matches
+  // 3. Fallback check: If still empty, check matches collection in Firestore for any completed matches
   if (recordsMap.size === 0) {
     try {
       const matchesCol = collection(db, 'matches');
@@ -514,11 +514,67 @@ export const fetchMatchHistoryFromCloud = async (): Promise<MatchHistoryEntry[]>
         }
       });
     } catch (err) {
-      console.warn('Recover from matches collection notice:', err);
+      console.warn('Recover from Firestore matches collection notice:', err);
     }
   }
 
-  // 4. Sort descending by creation date or timestamp
+  // 4. Fallback check: Check Realtime Database matches if still empty
+  if (recordsMap.size === 0 && rtdb) {
+    try {
+      const snap = await rtdbGet(rtdbRef(rtdb, 'matches'));
+      if (snap.exists()) {
+        const val = snap.val();
+        if (val && typeof val === 'object') {
+          Object.entries(val).forEach(([k, item]: [string, any]) => {
+            const mData = item?.matchData || item;
+            if (mData && (mData.status === 'completed' || mData.result) && (mData.id || k)) {
+              const mId = mData.id || k;
+              const entry: MatchHistoryEntry = {
+                id: mId,
+                date: mData.date || new Date().toISOString(),
+                teamA: mData.teamA?.name || 'Team A',
+                teamB: mData.teamB?.name || 'Team B',
+                result: mData.result || 'Completed',
+                inn1: `${mData.inn1?.total ?? 0}/${mData.inn1?.wickets ?? 0}`,
+                inn2: `${mData.inn2 ? mData.inn2.total : 0}/${mData.inn2 ? mData.inn2.wickets : 0}`,
+                overs: mData.overs || 5,
+                awards: mData.awards,
+                tournamentId: mData.tournamentId,
+                tournamentName: mData.tournamentName,
+                full: mData
+              };
+              recordsMap.set(entry.id, entry);
+              saveMatchHistoryToCloud(entry);
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Recover from RTDB matches notice:', err);
+    }
+  }
+
+  // 5. Fallback check: Check local storage for any match records to upload to cloud
+  if (recordsMap.size === 0 && typeof window !== 'undefined') {
+    try {
+      const localStr = localStorage.getItem('cricvault_history');
+      if (localStr) {
+        const localList = JSON.parse(localStr);
+        if (Array.isArray(localList) && localList.length > 0) {
+          for (const item of localList) {
+            if (item && item.id) {
+              recordsMap.set(item.id, item);
+              saveMatchHistoryToCloud(item);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Local storage cloud recovery notice:', err);
+    }
+  }
+
+  // 6. Sort descending by creation date or timestamp
   const records = Array.from(recordsMap.values());
   records.sort((a, b) => {
     const timeA = (a as any).createdAt || (a.date ? new Date(a.date).getTime() : (typeof a.id === 'number' ? a.id : 0));
