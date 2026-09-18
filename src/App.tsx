@@ -27,6 +27,9 @@ import {
   saveMatchHistoryToCloud, 
   deleteMatchHistoryFromCloud,
   subscribeToMatchHistory, 
+  fetchMatchHistoryFromCloud,
+  syncLocalHistoryToCloud,
+  clearAllMatchHistoryFromCloud,
   saveTournamentToCloud, 
   deleteTournamentFromCloud,
   subscribeToTournaments, 
@@ -150,6 +153,55 @@ export default function App() {
 
   const isScorer = user.role === 'scorer' || user.role === 'cloudadmin';
 
+  // Cloud History Sync State & Handlers
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+  const [cloudSyncMessage, setCloudSyncMessage] = useState<string | null>(null);
+
+  const handleRetrieveHistoryFromCloud = async () => {
+    setIsCloudSyncing(true);
+    try {
+      const cloudRecords = await fetchMatchHistoryFromCloud();
+      if (cloudRecords && cloudRecords.length > 0) {
+        setHistory(cloudRecords);
+        localStorage.setItem('cricvault_history', JSON.stringify(cloudRecords.slice(0, 40)));
+        setCloudSyncMessage(`Retrieved ${cloudRecords.length} match${cloudRecords.length > 1 ? 'es' : ''} from Cloud!`);
+      } else {
+        setCloudSyncMessage('No match records found in Cloud archive yet.');
+      }
+    } catch (err) {
+      console.error('Failed to retrieve history from Cloud:', err);
+      setCloudSyncMessage('Could not retrieve from Cloud. Please check connection.');
+    } finally {
+      setIsCloudSyncing(false);
+      setTimeout(() => setCloudSyncMessage(null), 4000);
+    }
+  };
+
+  const handleSyncLocalHistoryToCloud = async () => {
+    if (!history || history.length === 0) return;
+    setIsCloudSyncing(true);
+    try {
+      await syncLocalHistoryToCloud(history);
+      setCloudSyncMessage(`Synchronized ${history.length} match${history.length > 1 ? 'es' : ''} to Cloud Firestore!`);
+    } catch (err) {
+      console.error('Failed to sync history to Cloud:', err);
+      setCloudSyncMessage('Could not sync to Cloud. Please try again.');
+    } finally {
+      setIsCloudSyncing(false);
+      setTimeout(() => setCloudSyncMessage(null), 4000);
+    }
+  };
+
+  const handleClearHistory = async (deleteFromCloudToo: boolean = false) => {
+    if (deleteFromCloudToo) {
+      await clearAllMatchHistoryFromCloud(history);
+    }
+    setHistory([]);
+    localStorage.removeItem('cricvault_history');
+    setCloudSyncMessage(deleteFromCloudToo ? 'History permanently deleted from Cloud & device.' : 'Local display cache cleared. Matches remain in Cloud.');
+    setTimeout(() => setCloudSyncMessage(null), 4000);
+  };
+
   // Spectator URL Detection & Firebase Real-time Subscriptions
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -199,6 +251,15 @@ export default function App() {
 
   // 3. Cloud Match Archives & History
   useEffect(() => {
+    // Proactively fetch immediately if history is empty locally (e.g. cleared locally or on new device)
+    if (history.length === 0) {
+      fetchMatchHistoryFromCloud().then((cloudRecords) => {
+        if (cloudRecords && cloudRecords.length > 0) {
+          setHistory(cloudRecords);
+        }
+      }).catch(err => console.warn('Auto fetch cloud history notice:', err));
+    }
+
     const unsub = subscribeToMatchHistory((remoteHistory) => {
       if (remoteHistory && remoteHistory.length > 0) {
         setHistory(remoteHistory);
@@ -1586,8 +1647,12 @@ export default function App() {
               setMatch(m);
               setActiveScreen('scorecard');
             }}
-            onClearHistory={() => setHistory([])}
+            onClearHistory={handleClearHistory}
             isScorer={isScorer}
+            onRetrieveFromCloud={handleRetrieveHistoryFromCloud}
+            onSyncLocalToCloud={handleSyncLocalHistoryToCloud}
+            isCloudSyncing={isCloudSyncing}
+            cloudSyncMessage={cloudSyncMessage}
           />
         )}
       </main>

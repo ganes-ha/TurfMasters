@@ -4,6 +4,7 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  getDocs,
   deleteDoc, 
   collection, 
   onSnapshot, 
@@ -18,6 +19,7 @@ import {
   ref as rtdbRef, 
   set as rtdbSet, 
   remove as rtdbRemove,
+  get as rtdbGet,
   Database 
 } from 'firebase/database';
 import { 
@@ -441,6 +443,93 @@ export const subscribeToMatchHistory = (
 };
 
 /**
+ * Actively fetches all archived match records from Cloud Firestore and Realtime Database.
+ * This can be triggered on demand or on new devices when local storage is cleared.
+ */
+export const fetchMatchHistoryFromCloud = async (): Promise<MatchHistoryEntry[]> => {
+  const recordsMap = new Map<string | number, MatchHistoryEntry>();
+
+  // 1. Fetch from Firestore match_history collection
+  try {
+    const historyCol = collection(db, 'match_history');
+    const snap = await getDocs(historyCol);
+    snap.forEach((d) => {
+      const data = d.data() as MatchHistoryEntry;
+      if (data && (data.id || d.id)) {
+        const id = data.id || d.id;
+        recordsMap.set(id, { ...data, id });
+      }
+    });
+  } catch (err) {
+    console.warn('Firestore fetch match_history notice:', err);
+  }
+
+  // 2. Also query Realtime Database match_history as dual-redundant backup
+  if (rtdb) {
+    try {
+      const snap = await rtdbGet(rtdbRef(rtdb, 'match_history'));
+      if (snap.exists()) {
+        const val = snap.val();
+        if (val && typeof val === 'object') {
+          Object.entries(val).forEach(([k, item]: [string, any]) => {
+            if (item && (item.id || k)) {
+              const id = item.id || k;
+              if (!recordsMap.has(id)) {
+                recordsMap.set(id, { ...item, id });
+              }
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('RTDB fetch match_history notice:', err);
+    }
+  }
+
+  // 3. Fallback check: If still empty, check matches collection for any completed matches
+  if (recordsMap.size === 0) {
+    try {
+      const matchesCol = collection(db, 'matches');
+      const snap = await getDocs(matchesCol);
+      snap.forEach((d) => {
+        const data = d.data();
+        if (data && data.matchData && (data.matchData.status === 'completed' || data.matchData.result)) {
+          const m: Match = data.matchData;
+          const entry: MatchHistoryEntry = {
+            id: m.id,
+            date: m.date,
+            teamA: m.teamA.name,
+            teamB: m.teamB.name,
+            result: m.result || 'Completed',
+            inn1: `${m.inn1.total}/${m.inn1.wickets}`,
+            inn2: `${m.inn2 ? m.inn2.total : 0}/${m.inn2 ? m.inn2.wickets : 0}`,
+            overs: m.overs,
+            awards: m.awards,
+            tournamentId: m.tournamentId,
+            tournamentName: m.tournamentName,
+            full: m
+          };
+          recordsMap.set(entry.id, entry);
+          saveMatchHistoryToCloud(entry);
+        }
+      });
+    } catch (err) {
+      console.warn('Recover from matches collection notice:', err);
+    }
+  }
+
+  // 4. Sort descending by creation date or timestamp
+  const records = Array.from(recordsMap.values());
+  records.sort((a, b) => {
+    const timeA = (a as any).createdAt || (a.date ? new Date(a.date).getTime() : (typeof a.id === 'number' ? a.id : 0));
+    const timeB = (b as any).createdAt || (b.date ? new Date(b.date).getTime() : (typeof b.id === 'number' ? b.id : 0));
+    return timeB - timeA;
+  });
+
+  return records;
+};
+
+/**
  * Deletes a match from cloud archive
  */
 export const deleteMatchHistoryFromCloud = async (historyId: string | number): Promise<void> => {
@@ -452,6 +541,19 @@ export const deleteMatchHistoryFromCloud = async (historyId: string | number): P
     ]);
   } catch (err) {
     console.error('Failed to delete match history entry:', err);
+  }
+};
+
+/**
+ * Clears all match history entries from cloud archive
+ */
+export const clearAllMatchHistoryFromCloud = async (historyList: MatchHistoryEntry[]): Promise<void> => {
+  try {
+    for (const h of historyList) {
+      await deleteMatchHistoryFromCloud(h.id);
+    }
+  } catch (err) {
+    console.error('Failed to clear all match history from cloud:', err);
   }
 };
 
